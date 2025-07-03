@@ -2,3 +2,4 @@ Flask
 pymongo
 dnspython
 gunicorn
+flask-cors
