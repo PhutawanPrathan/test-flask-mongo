@@ -1,38 +1,43 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from pymongo import MongoClient
 from datetime import datetime
 import threading
 import time
 import random
-from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app) # ✅ อนุญาตให้ Netlify หรือเว็บอื่นๆ เรียก API ได้
-# ✅ MongoDB URI
+CORS(app)  # ✅ ให้ Frontend เรียก API ได้ข้ามโดเมน
+
+# ✅ MongoDB Atlas URI
 uri = "mongodb+srv://projectEE:ee707778@cluster0.ttq1nzx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 client = MongoClient(uri)
 db = client["sensor_db"]
 collection = db["sensor_data"]
 
-# ✅ ฟังก์ชันจำลองการส่งข้อมูลเข้า MongoDB
+# ✅ ล้าง collection ตอนเริ่มใหม่ (เพื่อความสะอาด)
+collection.delete_many({})
+
+# ✅ ฟังก์ชันสุ่มข้อมูล sensor แล้วส่งเข้า MongoDB
 def simulate_sensor():
     while True:
         data = {
             "timestamp": datetime.now(),
-            "temperature": round(random.uniform(25, 35), 2),
-            "humidity": random.randint(50, 80)
+            "temperature": round(random.uniform(24.0, 36.0), 2),
+            "humidity": round(random.uniform(45.0, 85.0), 2)
         }
+        print("🔄 Sending fake data:", data)
         collection.insert_one(data)
-        time.sleep(1)
+        time.sleep(1)  # ส่งทุก 1 วินาที
 
-# ✅ เริ่ม thread background
+# ✅ เริ่ม thread ส่งข้อมูลจำลอง (background)
 threading.Thread(target=simulate_sensor, daemon=True).start()
 
 @app.route("/")
 def index():
-    return "API is running. Go to /data to view data."
+    return "✅ API is running. Access /data to view sensor data."
 
-# ✅ API สำหรับส่งข้อมูล (Frontend จะเรียกจาก Netlify)
+# ✅ API ดึงข้อมูลล่าสุดจาก MongoDB
 @app.route("/data")
 def get_data():
     data = list(collection.find().sort("timestamp", -1).limit(10))
@@ -46,4 +51,4 @@ def get_data():
     ])
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
