@@ -62,7 +62,10 @@ def get_latest():
             "timestamp": d["timestamp"].strftime("%H:%M:%S"),
             "accel_x": d["accel_x"],
             "accel_y": d["accel_y"],
-            "accel_z": d["accel_z"]
+            "accel_z": d["accel_z"],
+            "gyro_x": d["gyro_x"],
+            "gyro_y": d["gyro_y"],
+            "gyro_z": d["gyro_z"]
         }
         for d in reversed(data)
     ])
