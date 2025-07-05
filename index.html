@@ -1,88 +1,208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>📈 MPU6050 Real-time Dashboard</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 2em;
-            background-color: #f0f8ff;
-        }
-        h2 {
-            color: #333;
-            text-align: center;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        th, td {
-            padding: 10px;
-            text-align: center;
-            border: 1px solid #ccc;
-        }
-        th {
-            background-color: #4CAF50;
-            color: white;
-        }
-        tr:hover {
-            background-color: #f9f9f9;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📊 Real-time Sensor Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+    }
+    nav {
+      width: 220px;
+      background-color: #2f3542;
+      color: white;
+      padding: 1rem;
+    }
+    nav h2 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    nav a {
+      color: white;
+      display: block;
+      margin: 1rem 0;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    main {
+      flex: 1;
+      padding: 2rem;
+      background-color: #f1f2f6;
+      overflow-y: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.8rem;
+      text-align: center;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    tr:hover {
+      background-color: #f9f9f9;
+    }
+    canvas {
+      max-width: 100%;
+    }
+  </style>
 </head>
 <body>
-    <h2>📡 Real-time MPU6050 Dashboard</h2>
-    <table id="data-table">
+
+  <nav>
+    <h2>📡 Dashboard</h2>
+    <a onclick="showPage('log')">📋 Sensor Log</a>
+    <a onclick="showPage('graph')">📈 Sensor Graph</a>
+    <a onclick="showPage('stream')">📷 Camera Stream</a>
+  </nav>
+
+  <main>
+    <section id="log-page">
+      <h2>📋 Sensor Log (Latest 10)</h2>
+      <table id="data-table">
         <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>Accel X</th>
-                <th>Accel Y</th>
-                <th>Accel Z</th>
-                <th>Gyro X</th>
-                <th>Gyro Y</th>
-                <th>Gyro Z</th>
-            </tr>
+          <tr>
+            <th>Timestamp</th>
+            <th>Accel X</th>
+            <th>Accel Y</th>
+            <th>Accel Z</th>
+            <th>Gyro X</th>
+            <th>Gyro Y</th>
+            <th>Gyro Z</th>
+          </tr>
         </thead>
-        <tbody>
-            <tr><td colspan="7">Loading...</td></tr>
-        </tbody>
-    </table>
+        <tbody><tr><td colspan="7">Loading...</td></tr></tbody>
+      </table>
+    </section>
 
-    <script>
-        async function fetchData() {
-            try {
-                const response = await fetch('https://test-flask-mongo.onrender.com/data'); // เปลี่ยน URL ตาม backend ของคุณ
-                const data = await response.json();
+    <section id="graph-page" style="display: none;">
+      <h2>📈 Sensor Graph (Realtime)</h2>
+      <canvas id="accelChart"></canvas>
+      <canvas id="gyroChart" style="margin-top: 2rem;"></canvas>
+    </section>
 
-                const tbody = document.querySelector("#data-table tbody");
-                tbody.innerHTML = "";
+    <section id="stream-page" style="display: none;">
+      <h2>📷 ESP32-CAM Live Stream</h2>
+      <iframe src="http://192.168.1.100:81/stream" width="100%" height="400" style="border:none;"></iframe>
+    </section>
+  </main>
 
-                data.forEach(row => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td>${row.timestamp}</td>
-                        <td>${row.accel_x}</td>
-                        <td>${row.accel_y}</td>
-                        <td>${row.accel_z}</td>
-                        <td>${row.gyro_x}</td>
-                        <td>${row.gyro_y}</td>
-                        <td>${row.gyro_z}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const apiURL = "https://test-flask-mongo.onrender.com/data";
 
-            } catch (error) {
-                console.error("❌ Error fetching data:", error);
-            }
-        }
+    function showPage(page) {
+      document.getElementById("log-page").style.display = page === "log" ? "block" : "none";
+      document.getElementById("graph-page").style.display = page === "graph" ? "block" : "none";
+      document.getElementById("stream-page").style.display = page === "stream" ? "block" : "none";
+    }
 
-        setInterval(fetchData, 1000);
-        fetchData();
-    </script>
+    async function fetchData() {
+      try {
+        const res = await fetch(apiURL);
+        return await res.json();
+      } catch (err) {
+        console.error("❌ Error fetching data:", err);
+        return [];
+      }
+    }
+
+    async function updateTable() {
+      const data = await fetchData();
+      const tableBody = document.querySelector("#data-table tbody");
+      tableBody.innerHTML = "";
+
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.timestamp}</td>
+          <td>${row.accel_x}</td>
+          <td>${row.accel_y}</td>
+          <td>${row.accel_z}</td>
+          <td>${row.gyro_x}</td>
+          <td>${row.gyro_y}</td>
+          <td>${row.gyro_z}</td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // ===== Chart Setup =====
+    const accelCtx = document.getElementById("accelChart").getContext("2d");
+    const gyroCtx = document.getElementById("gyroChart").getContext("2d");
+
+    const accelChart = new Chart(accelCtx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          { label: "Accel X", borderColor: "red", data: [] },
+          { label: "Accel Y", borderColor: "blue", data: [] },
+          { label: "Accel Z", borderColor: "green", data: [] },
+        ]
+      },
+      options: { responsive: true, animation: false }
+    });
+
+    const gyroChart = new Chart(gyroCtx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          { label: "Gyro X", borderColor: "orange", data: [] },
+          { label: "Gyro Y", borderColor: "purple", data: [] },
+          { label: "Gyro Z", borderColor: "gray", data: [] },
+        ]
+      },
+      options: { responsive: true, animation: false }
+    });
+
+    async function updateCharts() {
+      const data = await fetchData();
+      const labels = data.map(d => d.timestamp).reverse();
+      const accelX = data.map(d => d.accel_x).reverse();
+      const accelY = data.map(d => d.accel_y).reverse();
+      const accelZ = data.map(d => d.accel_z).reverse();
+
+      const gyroX = data.map(d => d.gyro_x).reverse();
+      const gyroY = data.map(d => d.gyro_y).reverse();
+      const gyroZ = data.map(d => d.gyro_z).reverse();
+
+      accelChart.data.labels = labels;
+      accelChart.data.datasets[0].data = accelX;
+      accelChart.data.datasets[1].data = accelY;
+      accelChart.data.datasets[2].data = accelZ;
+      accelChart.update();
+
+      gyroChart.data.labels = labels;
+      gyroChart.data.datasets[0].data = gyroX;
+      gyroChart.data.datasets[1].data = gyroY;
+      gyroChart.data.datasets[2].data = gyroZ;
+      gyroChart.update();
+    }
+
+    // เริ่มดึงข้อมูลทุก 1 วิ
+    setInterval(() => {
+      updateTable();
+      updateCharts();
+    }, 1000);
+
+    // load เริ่มต้น
+    updateTable();
+    updateCharts();
+  </script>
 </body>
 </html>
