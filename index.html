@@ -82,9 +82,15 @@
         </section>
 
         <section id="graph-page" style="display:none">
-            <h2>📈 Real-time Accelerometer Graph</h2>
-            <canvas id="sensorChart"></canvas>
+        <h2>📈 Real-time Sensor Graphs</h2>
+    
+        <h4>Accelerometer</h4>
+        <canvas id="accelChart" height="150"></canvas>
+    
+        <h4>Gyroscope</h4>
+        <canvas id="gyroChart" height="150"></canvas>
         </section>
+
 
         <section id="stream-page" style="display:none">
             <h2>📹 Camera Stream (Coming soon)</h2>
@@ -122,39 +128,68 @@
             loadLogs();
         }
 
-        let chart;
-        async function updateGraph() {
-            const res = await fetch(`${apiBase}/latest`);
-            const data = await res.json();
-            const labels = data.map(d => d.timestamp);
-            const ax = data.map(d => d.accel_x);
-            const ay = data.map(d => d.accel_y);
-            const az = data.map(d => d.accel_z);
+        let accelChart, gyroChart;
 
-            if (!chart) {
-                const ctx = document.getElementById("sensorChart").getContext("2d");
-                chart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            { label: 'Accel X', data: ax, borderColor: 'red', fill: false },
-                            { label: 'Accel Y', data: ay, borderColor: 'green', fill: false },
-                            { label: 'Accel Z', data: az, borderColor: 'blue', fill: false }
-                        ]
-                    },
-                    options: { responsive: true }
-                });
-            } else {
-                chart.data.labels = labels;
-                chart.data.datasets[0].data = ax;
-                chart.data.datasets[1].data = ay;
-                chart.data.datasets[2].data = az;
-                chart.update();
-            }
+    async function updateGraph() {
+        const res = await fetch(`${apiBase}/latest`);
+        const data = await res.json();
+
+        const labels = data.map(d => d.timestamp);
+        const ax = data.map(d => d.accel_x);
+        const ay = data.map(d => d.accel_y);
+        const az = data.map(d => d.accel_z);
+        const gx = data.map(d => d.gyro_x);
+        const gy = data.map(d => d.gyro_y);
+        const gz = data.map(d => d.gyro_z);
+
+        // Accel Chart
+        if (!accelChart) {
+            const ctx1 = document.getElementById("accelChart").getContext("2d");
+            accelChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Accel X', data: ax, borderColor: 'red', fill: false },
+                        { label: 'Accel Y', data: ay, borderColor: 'green', fill: false },
+                        { label: 'Accel Z', data: az, borderColor: 'blue', fill: false }
+                    ]
+                },
+                options: { responsive: true }
+            });
+        } else {
+            accelChart.data.labels = labels;
+            accelChart.data.datasets[0].data = ax;
+            accelChart.data.datasets[1].data = ay;
+            accelChart.data.datasets[2].data = az;
+            accelChart.update();
         }
 
-        setInterval(updateGraph, 2000);
+        // Gyro Chart
+        if (!gyroChart) {
+            const ctx2 = document.getElementById("gyroChart").getContext("2d");
+            gyroChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Gyro X', data: gx, borderColor: 'orange', fill: false },
+                        { label: 'Gyro Y', data: gy, borderColor: 'purple', fill: false },
+                        { label: 'Gyro Z', data: gz, borderColor: 'brown', fill: false }
+                    ]
+                },
+                options: { responsive: true }
+            });
+        } else {
+            gyroChart.data.labels = labels;
+            gyroChart.data.datasets[0].data = gx;
+            gyroChart.data.datasets[1].data = gy;
+            gyroChart.data.datasets[2].data = gz;
+            gyroChart.update();
+        }
+    }
+
+    setInterval(updateGraph, 2000);
 
         function showPage(id) {
             document.getElementById("log-page").style.display = id === 'log' ? "block" : "none";
