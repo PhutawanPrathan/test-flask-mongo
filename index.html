@@ -1,202 +1,168 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>📊 Real-time Sensor Dashboard</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background-color: #f9f9f9;
-    }
-    .container {
-      display: flex;
-      height: 100vh;
-    }
-    aside {
-      width: 220px;
-      background-color: #333;
-      color: white;
-      padding: 1rem;
-    }
-    aside h2 {
-      font-size: 1.2rem;
-      margin-top: 0;
-    }
-    aside ul {
-      list-style: none;
-      padding: 0;
-    }
-    aside li {
-      padding: 10px;
-      cursor: pointer;
-    }
-    aside li:hover, aside li.active {
-      background-color: #4CAF50;
-    }
-    main {
-      flex: 1;
-      padding: 2rem;
-      overflow-y: auto;
-    }
-    h2 {
-      color: #333;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      background-color: white;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-    }
-    th, td {
-      padding: 12px;
-      text-align: center;
-      border: 1px solid #ddd;
-    }
-    th {
-      background-color: #4CAF50;
-      color: white;
-    }
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-    .pagination {
-      margin-top: 1rem;
-      text-align: center;
-    }
-    .pagination button {
-      padding: 0.5rem 1rem;
-      margin: 0 0.25rem;
-      border: none;
-      background-color: #4CAF50;
-      color: white;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    .pagination button:disabled {
-      background-color: #aaa;
-      cursor: not-allowed;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>📊 Real-time Sensor Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+        }
+        nav {
+            width: 200px;
+            background-color: #2c3e50;
+            color: white;
+            height: 100vh;
+            padding-top: 1em;
+        }
+        nav a {
+            display: block;
+            color: white;
+            padding: 1em;
+            text-decoration: none;
+        }
+        nav a:hover {
+            background-color: #34495e;
+        }
+        main {
+            flex-grow: 1;
+            padding: 2em;
+            background-color: #f4f4f4;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1em;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:hover { background-color: #f1f1f1; }
+        .pagination button {
+            margin: 0.5em;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <aside>
-      <h2>📁 Dashboard</h2>
-      <ul>
-        <li class="active" onclick="showPage('log')">📄 Log Table</li>
-        <li onclick="showPage('graph')">📈 Sensor Graph</li>
-        <li onclick="showPage('stream')">📷 Camera Stream</li>
-      </ul>
-    </aside>
+    <nav>
+        <a href="#" onclick="showPage('log')">Log Table</a>
+        <a href="#" onclick="showPage('graph')">Sensor Graph</a>
+        <a href="#" onclick="showPage('stream')">Camera Stream</a>
+    </nav>
     <main>
-      <!-- Page 1: Log Table -->
-      <section id="log-page">
-        <h2>📄 Real-time MPU6050 Log</h2>
-        <table id="data-table">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Accel X</th>
-              <th>Accel Y</th>
-              <th>Accel Z</th>
-              <th>Gyro X</th>
-              <th>Gyro Y</th>
-              <th>Gyro Z</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td colspan="7">Loading...</td></tr>
-          </tbody>
-        </table>
-        <div class="pagination">
-          <button onclick="prevPage()">⬅️ Previous</button>
-          <span id="page-num">Page 1</span>
-          <button onclick="nextPage()">Next ➡️</button>
-        </div>
-      </section>
+        <section id="log-page">
+            <h2>📊 Sensor Log (10 per page)</h2>
+            <table id="log-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Accel X</th>
+                        <th>Accel Y</th>
+                        <th>Accel Z</th>
+                        <th>Gyro X</th>
+                        <th>Gyro Y</th>
+                        <th>Gyro Z</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div class="pagination">
+                <button onclick="changePage(-1)">&laquo; Prev</button>
+                <span id="page-number">Page 1</span>
+                <button onclick="changePage(1)">Next &raquo;</button>
+            </div>
+        </section>
 
-      <!-- Page 2: Graph (Placeholder) -->
-      <section id="graph-page" style="display: none;">
-        <h2>📈 Sensor Graph</h2>
-        <p>🛠️ กำลังพัฒนา... (mock-up หน้านี้ไว้ใช้งานทีหลัง)</p>
-      </section>
+        <section id="graph-page" style="display:none">
+            <h2>📈 Real-time Accelerometer Graph</h2>
+            <canvas id="sensorChart"></canvas>
+        </section>
 
-      <!-- Page 3: ESP32-CAM (Placeholder) -->
-      <section id="stream-page" style="display: none;">
-        <h2>📷 ESP32-CAM Stream</h2>
-        <p>🛠️ เตรียมไว้สำหรับสตรีมกล้องจาก ESP32-CAM</p>
-        <p>ตัวอย่าง: <code>&lt;img src="http://IP_ESP32_CAM/video" /&gt;</code></p>
-      </section>
+        <section id="stream-page" style="display:none">
+            <h2>📹 Camera Stream (Coming soon)</h2>
+            <p>ESP32-CAM stream will appear here.</p>
+        </section>
     </main>
-  </div>
 
-  <script>
-    const apiURL = "https://test-flask-mongo.onrender.com/data";
-    let currentPage = 1;
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let page = 1;
+        const apiBase = "https://test-flask-mongo.onrender.com";
 
-    function showPage(pageId) {
-      document.querySelectorAll("main section").forEach(s => s.style.display = "none");
-      document.querySelector(`#${pageId}-page`).style.display = "block";
+        async function loadLogs() {
+            const res = await fetch(`${apiBase}/data?page=${page}`);
+            const data = await res.json();
+            const tbody = document.querySelector("#log-table tbody");
+            tbody.innerHTML = "";
+            data.forEach(row => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${row.timestamp}</td>
+                    <td>${row.accel_x}</td>
+                    <td>${row.accel_y}</td>
+                    <td>${row.accel_z}</td>
+                    <td>${row.gyro_x}</td>
+                    <td>${row.gyro_y}</td>
+                    <td>${row.gyro_z}</td>`;
+                tbody.appendChild(tr);
+            });
+            document.getElementById("page-number").textContent = `Page ${page}`;
+        }
 
-      document.querySelectorAll("aside li").forEach(li => li.classList.remove("active"));
-      document.querySelectorAll("aside li").forEach(li => {
-        if (li.textContent.includes(pageId.charAt(0).toUpperCase())) li.classList.add("active");
-      });
+        function changePage(delta) {
+            page = Math.max(1, Math.min(page + delta, 10));
+            loadLogs();
+        }
 
-      if (pageId === "log") updateTable();
-    }
+        let chart;
+        async function updateGraph() {
+            const res = await fetch(`${apiBase}/latest`);
+            const data = await res.json();
+            const labels = data.map(d => d.timestamp);
+            const ax = data.map(d => d.accel_x);
+            const ay = data.map(d => d.accel_y);
+            const az = data.map(d => d.accel_z);
 
-    async function fetchData(page = 1) {
-      try {
-        const response = await fetch(`${apiURL}?page=${page}&page_size=10`);
-        return await response.json();
-      } catch (error) {
-        console.error("❌ Error fetching data:", error);
-        return [];
-      }
-    }
+            if (!chart) {
+                const ctx = document.getElementById("sensorChart").getContext("2d");
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Accel X', data: ax, borderColor: 'red', fill: false },
+                            { label: 'Accel Y', data: ay, borderColor: 'green', fill: false },
+                            { label: 'Accel Z', data: az, borderColor: 'blue', fill: false }
+                        ]
+                    },
+                    options: { responsive: true }
+                });
+            } else {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = ax;
+                chart.data.datasets[1].data = ay;
+                chart.data.datasets[2].data = az;
+                chart.update();
+            }
+        }
 
-    async function updateTable() {
-      const data = await fetchData(currentPage);
-      document.getElementById("page-num").textContent = `Page ${currentPage}`;
-      const tableBody = document.querySelector("#data-table tbody");
-      tableBody.innerHTML = "";
+        setInterval(updateGraph, 2000);
 
-      if (data.length === 0) {
-        tableBody.innerHTML = "<tr><td colspan='7'>No data found</td></tr>";
-        return;
-      }
+        function showPage(id) {
+            document.getElementById("log-page").style.display = id === 'log' ? "block" : "none";
+            document.getElementById("graph-page").style.display = id === 'graph' ? "block" : "none";
+            document.getElementById("stream-page").style.display = id === 'stream' ? "block" : "none";
+        }
 
-      data.forEach(row => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row.timestamp}</td>
-          <td>${row.accel_x}</td>
-          <td>${row.accel_y}</td>
-          <td>${row.accel_z}</td>
-          <td>${row.gyro_x}</td>
-          <td>${row.gyro_y}</td>
-          <td>${row.gyro_z}</td>
-        `;
-        tableBody.appendChild(tr);
-      });
-    }
-
-    function nextPage() {
-      currentPage++;
-      updateTable();
-    }
-
-    function prevPage() {
-      if (currentPage > 1) {
-        currentPage--;
-        updateTable();
-      }
-    }
-
-    // Load first time
-    updateTable();
-  </script>
+        loadLogs();
+    </script>
 </body>
 </html>
