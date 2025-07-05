@@ -2,128 +2,171 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>📊 Real-time Sensor Dashboard</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 0;
+      background-color: #f9f9f9;
+    }
+    .container {
       display: flex;
       height: 100vh;
     }
-    nav {
+    aside {
       width: 220px;
-      background-color: #2f3542;
+      background-color: #333;
       color: white;
       padding: 1rem;
     }
-    nav h2 {
+    aside h2 {
       font-size: 1.2rem;
-      margin-bottom: 1rem;
+      margin-top: 0;
     }
-    nav a {
-      color: white;
-      display: block;
-      margin: 1rem 0;
-      text-decoration: none;
+    aside ul {
+      list-style: none;
+      padding: 0;
+    }
+    aside li {
+      padding: 10px;
       cursor: pointer;
     }
-    nav a:hover {
-      text-decoration: underline;
+    aside li:hover, aside li.active {
+      background-color: #4CAF50;
     }
     main {
       flex: 1;
       padding: 2rem;
-      background-color: #f1f2f6;
       overflow-y: auto;
     }
+    h2 {
+      color: #333;
+    }
     table {
-      width: 100%;
       border-collapse: collapse;
-      margin-top: 1rem;
-      background: white;
+      width: 100%;
+      background-color: white;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
     th, td {
-      border: 1px solid #ccc;
-      padding: 0.8rem;
+      padding: 12px;
       text-align: center;
+      border: 1px solid #ddd;
     }
     th {
       background-color: #4CAF50;
       color: white;
     }
     tr:hover {
-      background-color: #f9f9f9;
+      background-color: #f1f1f1;
     }
-    canvas {
-      max-width: 100%;
+    .pagination {
+      margin-top: 1rem;
+      text-align: center;
+    }
+    .pagination button {
+      padding: 0.5rem 1rem;
+      margin: 0 0.25rem;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .pagination button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <aside>
+      <h2>📁 Dashboard</h2>
+      <ul>
+        <li class="active" onclick="showPage('log')">📄 Log Table</li>
+        <li onclick="showPage('graph')">📈 Sensor Graph</li>
+        <li onclick="showPage('stream')">📷 Camera Stream</li>
+      </ul>
+    </aside>
+    <main>
+      <!-- Page 1: Log Table -->
+      <section id="log-page">
+        <h2>📄 Real-time MPU6050 Log</h2>
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Accel X</th>
+              <th>Accel Y</th>
+              <th>Accel Z</th>
+              <th>Gyro X</th>
+              <th>Gyro Y</th>
+              <th>Gyro Z</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="7">Loading...</td></tr>
+          </tbody>
+        </table>
+        <div class="pagination">
+          <button onclick="prevPage()">⬅️ Previous</button>
+          <span id="page-num">Page 1</span>
+          <button onclick="nextPage()">Next ➡️</button>
+        </div>
+      </section>
 
-  <nav>
-    <h2>📡 Dashboard</h2>
-    <a onclick="showPage('log')">📋 Sensor Log</a>
-    <a onclick="showPage('graph')">📈 Sensor Graph</a>
-    <a onclick="showPage('stream')">📷 Camera Stream</a>
-  </nav>
+      <!-- Page 2: Graph (Placeholder) -->
+      <section id="graph-page" style="display: none;">
+        <h2>📈 Sensor Graph</h2>
+        <p>🛠️ กำลังพัฒนา... (mock-up หน้านี้ไว้ใช้งานทีหลัง)</p>
+      </section>
 
-  <main>
-    <section id="log-page">
-      <h2>📋 Sensor Log (Latest 10)</h2>
-      <table id="data-table">
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>Accel X</th>
-            <th>Accel Y</th>
-            <th>Accel Z</th>
-            <th>Gyro X</th>
-            <th>Gyro Y</th>
-            <th>Gyro Z</th>
-          </tr>
-        </thead>
-        <tbody><tr><td colspan="7">Loading...</td></tr></tbody>
-      </table>
-    </section>
+      <!-- Page 3: ESP32-CAM (Placeholder) -->
+      <section id="stream-page" style="display: none;">
+        <h2>📷 ESP32-CAM Stream</h2>
+        <p>🛠️ เตรียมไว้สำหรับสตรีมกล้องจาก ESP32-CAM</p>
+        <p>ตัวอย่าง: <code>&lt;img src="http://IP_ESP32_CAM/video" /&gt;</code></p>
+      </section>
+    </main>
+  </div>
 
-    <section id="graph-page" style="display: none;">
-      <h2>📈 Sensor Graph (Realtime)</h2>
-      <canvas id="accelChart"></canvas>
-      <canvas id="gyroChart" style="margin-top: 2rem;"></canvas>
-    </section>
-
-    <section id="stream-page" style="display: none;">
-      <h2>📷 ESP32-CAM Live Stream</h2>
-      <iframe src="http://192.168.1.100:81/stream" width="100%" height="400" style="border:none;"></iframe>
-    </section>
-  </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const apiURL = "https://test-flask-mongo.onrender.com/data";
+    let currentPage = 1;
 
-    function showPage(page) {
-      document.getElementById("log-page").style.display = page === "log" ? "block" : "none";
-      document.getElementById("graph-page").style.display = page === "graph" ? "block" : "none";
-      document.getElementById("stream-page").style.display = page === "stream" ? "block" : "none";
+    function showPage(pageId) {
+      document.querySelectorAll("main section").forEach(s => s.style.display = "none");
+      document.querySelector(`#${pageId}-page`).style.display = "block";
+
+      document.querySelectorAll("aside li").forEach(li => li.classList.remove("active"));
+      document.querySelectorAll("aside li").forEach(li => {
+        if (li.textContent.includes(pageId.charAt(0).toUpperCase())) li.classList.add("active");
+      });
+
+      if (pageId === "log") updateTable();
     }
 
-    async function fetchData() {
+    async function fetchData(page = 1) {
       try {
-        const res = await fetch(apiURL);
-        return await res.json();
-      } catch (err) {
-        console.error("❌ Error fetching data:", err);
+        const response = await fetch(`${apiURL}?page=${page}&page_size=10`);
+        return await response.json();
+      } catch (error) {
+        console.error("❌ Error fetching data:", error);
         return [];
       }
     }
 
     async function updateTable() {
-      const data = await fetchData();
+      const data = await fetchData(currentPage);
+      document.getElementById("page-num").textContent = `Page ${currentPage}`;
       const tableBody = document.querySelector("#data-table tbody");
       tableBody.innerHTML = "";
+
+      if (data.length === 0) {
+        tableBody.innerHTML = "<tr><td colspan='7'>No data found</td></tr>";
+        return;
+      }
 
       data.forEach(row => {
         const tr = document.createElement("tr");
@@ -140,69 +183,20 @@
       });
     }
 
-    // ===== Chart Setup =====
-    const accelCtx = document.getElementById("accelChart").getContext("2d");
-    const gyroCtx = document.getElementById("gyroChart").getContext("2d");
-
-    const accelChart = new Chart(accelCtx, {
-      type: "line",
-      data: {
-        labels: [],
-        datasets: [
-          { label: "Accel X", borderColor: "red", data: [] },
-          { label: "Accel Y", borderColor: "blue", data: [] },
-          { label: "Accel Z", borderColor: "green", data: [] },
-        ]
-      },
-      options: { responsive: true, animation: false }
-    });
-
-    const gyroChart = new Chart(gyroCtx, {
-      type: "line",
-      data: {
-        labels: [],
-        datasets: [
-          { label: "Gyro X", borderColor: "orange", data: [] },
-          { label: "Gyro Y", borderColor: "purple", data: [] },
-          { label: "Gyro Z", borderColor: "gray", data: [] },
-        ]
-      },
-      options: { responsive: true, animation: false }
-    });
-
-    async function updateCharts() {
-      const data = await fetchData();
-      const labels = data.map(d => d.timestamp).reverse();
-      const accelX = data.map(d => d.accel_x).reverse();
-      const accelY = data.map(d => d.accel_y).reverse();
-      const accelZ = data.map(d => d.accel_z).reverse();
-
-      const gyroX = data.map(d => d.gyro_x).reverse();
-      const gyroY = data.map(d => d.gyro_y).reverse();
-      const gyroZ = data.map(d => d.gyro_z).reverse();
-
-      accelChart.data.labels = labels;
-      accelChart.data.datasets[0].data = accelX;
-      accelChart.data.datasets[1].data = accelY;
-      accelChart.data.datasets[2].data = accelZ;
-      accelChart.update();
-
-      gyroChart.data.labels = labels;
-      gyroChart.data.datasets[0].data = gyroX;
-      gyroChart.data.datasets[1].data = gyroY;
-      gyroChart.data.datasets[2].data = gyroZ;
-      gyroChart.update();
+    function nextPage() {
+      currentPage++;
+      updateTable();
     }
 
-    // เริ่มดึงข้อมูลทุก 1 วิ
-    setInterval(() => {
-      updateTable();
-      updateCharts();
-    }, 1000);
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        updateTable();
+      }
+    }
 
-    // load เริ่มต้น
+    // Load first time
     updateTable();
-    updateCharts();
   </script>
 </body>
 </html>
