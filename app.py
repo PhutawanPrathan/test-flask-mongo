@@ -1,10 +1,9 @@
-# app.py (Flask Backend)
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 from datetime import datetime
 import threading
-import time
-import random
+import json
+import paho.mqtt.client as mqtt
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -15,22 +14,53 @@ client = MongoClient(uri)
 db = client["sensor_db"]
 collection = db["sensor_data"]
 
-# ✅ Mock sensor data
-def simulate_sensor():
-    while True:
-        data = {
-            "timestamp": datetime.now(),
-            "accel_x": round(random.uniform(-2.0, 2.0), 3),
-            "accel_y": round(random.uniform(-2.0, 2.0), 3),
-            "accel_z": round(random.uniform(8.5, 10.5), 3),
-            "gyro_x": round(random.uniform(-250.0, 250.0), 3),
-            "gyro_y": round(random.uniform(-250.0, 250.0), 3),
-            "gyro_z": round(random.uniform(-250.0, 250.0), 3)
-        }
-        collection.insert_one(data)
-        time.sleep(1)
+# ✅ ตัวแปรเก็บค่าจากแต่ละ MPU
+latest_data = {
+    "mpu1": None,
+    "mpu2": None
+}
 
-threading.Thread(target=simulate_sensor, daemon=True).start()
+# ✅ Callback รับข้อมูลจาก MQTT
+def on_message(client, userdata, msg):
+    try:
+        payload = json.loads(msg.payload.decode())
+        mpu_id = "mpu1" if msg.topic == "sensor/mpu1" else "mpu2"
+        latest_data[mpu_id] = payload
+
+        # ถ้ามีครบทั้ง mpu1 และ mpu2 ค่อย insert ลง MongoDB
+        if latest_data["mpu1"] and latest_data["mpu2"]:
+            combined_data = {
+                "timestamp": datetime.now(),
+                "mpu1_ax": latest_data["mpu1"]["ax"],
+                "mpu1_ay": latest_data["mpu1"]["ay"],
+                "mpu1_az": latest_data["mpu1"]["az"],
+                "mpu1_gx": latest_data["mpu1"]["gx"],
+                "mpu1_gy": latest_data["mpu1"]["gy"],
+                "mpu1_gz": latest_data["mpu1"]["gz"],
+                "mpu2_ax": latest_data["mpu2"]["ax"],
+                "mpu2_ay": latest_data["mpu2"]["ay"],
+                "mpu2_az": latest_data["mpu2"]["az"],
+                "mpu2_gx": latest_data["mpu2"]["gx"],
+                "mpu2_gy": latest_data["mpu2"]["gy"],
+                "mpu2_gz": latest_data["mpu2"]["gz"]
+            }
+            collection.insert_one(combined_data)
+            latest_data["mpu1"] = None
+            latest_data["mpu2"] = None
+            print("✅ Inserted:", combined_data)
+
+    except Exception as e:
+        print("❌ Error:", e)
+
+def mqtt_thread():
+    mqtt_client = mqtt.Client()
+    mqtt_client.on_message = on_message
+    mqtt_client.connect("localhost", 1883, 60)
+    mqtt_client.subscribe("sensor/mpu1")
+    mqtt_client.subscribe("sensor/mpu2")
+    mqtt_client.loop_forever()
+
+threading.Thread(target=mqtt_thread, daemon=True).start()
 
 @app.route("/data")
 def get_data():
@@ -42,14 +72,8 @@ def get_data():
         return jsonify([
             {
                 "timestamp": d["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
-                "accel_x": d["accel_x"],
-                "accel_y": d["accel_y"],
-                "accel_z": d["accel_z"],
-                "gyro_x": d["gyro_x"],
-                "gyro_y": d["gyro_y"],
-                "gyro_z": d["gyro_z"]
-            }
-            for d in data
+                **{k: d.get(k) for k in d if k != "_id" and k != "timestamp"}
+            } for d in data
         ])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -60,19 +84,13 @@ def get_latest():
     return jsonify([
         {
             "timestamp": d["timestamp"].strftime("%H:%M:%S"),
-            "accel_x": d["accel_x"],
-            "accel_y": d["accel_y"],
-            "accel_z": d["accel_z"],
-            "gyro_x": d["gyro_x"],
-            "gyro_y": d["gyro_y"],
-            "gyro_z": d["gyro_z"]
-        }
-        for d in reversed(data)
+            **{k: d.get(k) for k in d if k != "_id" and k != "timestamp"}
+        } for d in reversed(data)
     ])
 
 @app.route("/")
 def home():
-    return "Flask API for MPU6050 Mock Data"
+    return "Flask API for 2x MPU6050 via MQTT"
 
 if __name__ == "__main__":
     app.run(debug=True)
