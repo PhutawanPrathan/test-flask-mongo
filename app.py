@@ -24,7 +24,13 @@ latest_data = {
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
-        mpu_id = "mpu1" if msg.topic == "sensor/mpu1" else "mpu2"
+        if msg.topic == "esp32/mpu1":
+            mpu_id = "mpu1"
+        elif msg.topic == "esp32/mpu2":
+            mpu_id = "mpu2"
+        else:
+            return
+
         latest_data[mpu_id] = payload
 
         # ถ้ามีครบทั้ง mpu1 และ mpu2 ค่อย insert ลง MongoDB
@@ -56,8 +62,8 @@ def mqtt_thread():
     mqtt_client = mqtt.Client()
     mqtt_client.on_message = on_message
     mqtt_client.connect("localhost", 1883, 60)
-    mqtt_client.subscribe("sensor/mpu1")
-    mqtt_client.subscribe("sensor/mpu2")
+    mqtt_client.subscribe("esp32/mpu1")
+    mqtt_client.subscribe("esp32/mpu2")
     mqtt_client.loop_forever()
 
 threading.Thread(target=mqtt_thread, daemon=True).start()
