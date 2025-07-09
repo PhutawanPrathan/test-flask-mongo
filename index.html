@@ -1,203 +1,142 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>📊 Real-time Sensor Dashboard</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            margin: 0;
-        }
-        nav {
-            width: 200px;
-            background-color: #2c3e50;
-            color: white;
-            height: 100vh;
-            padding-top: 1em;
-        }
-        nav a {
-            display: block;
-            color: white;
-            padding: 1em;
-            text-decoration: none;
-        }
-        nav a:hover {
-            background-color: #34495e;
-        }
-        main {
-            flex-grow: 1;
-            padding: 2em;
-            background-color: #f4f4f4;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1em;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: center;
-        }
-        th {
-            background-color: #4CAF50;
-            color: white;
-        }
-        tr:hover { background-color: #f1f1f1; }
-        .pagination button {
-            margin: 0.5em;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>📊 Real-time Sensor Dashboard (MPU1 & MPU2)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; display: flex; }
+    nav {
+      width: 200px; background-color: #2c3e50; color: white;
+      height: 100vh; padding-top: 1em;
+    }
+    nav a {
+      display: block; padding: 1em; text-decoration: none; color: white;
+    }
+    nav a:hover { background-color: #34495e; }
+    main {
+      flex-grow: 1; padding: 2em; background-color: #f4f4f4;
+    }
+    table {
+      width: 100%; border-collapse: collapse; margin-top: 1em;
+    }
+    th, td {
+      border: 1px solid #ccc; padding: 8px; text-align: center;
+    }
+    th { background-color: #4CAF50; color: white; }
+    .pagination button { margin: 0.5em; }
+    canvas { max-width: 100%; }
+  </style>
 </head>
 <body>
-    <nav>
-        <a href="#" onclick="showPage('log')">Log Table</a>
-        <a href="#" onclick="showPage('graph')">Sensor Graph</a>
-        <a href="#" onclick="showPage('stream')">Camera Stream</a>
-    </nav>
-    <main>
-        <section id="log-page">
-            <h2>📊 Sensor Log (10 per page)</h2>
-            <table id="log-table">
-                <thead>
-                    <tr>
-                        <th>Timestamp</th>
-                        <th>Accel X</th>
-                        <th>Accel Y</th>
-                        <th>Accel Z</th>
-                        <th>Gyro X</th>
-                        <th>Gyro Y</th>
-                        <th>Gyro Z</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            <div class="pagination">
-                <button onclick="changePage(-1)">&laquo; Prev</button>
-                <span id="page-number">Page 1</span>
-                <button onclick="changePage(1)">Next &raquo;</button>
-            </div>
-        </section>
+<nav>
+  <a href="#" onclick="showPage('log')">Log Table</a>
+  <a href="#" onclick="showPage('graph')">Sensor Graphs</a>
+</nav>
+<main>
+  <section id="log-page">
+    <h2>📋 Sensor Log</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>MPU1 Ax</th><th>Ay</th><th>Az</th><th>Gx</th><th>Gy</th><th>Gz</th>
+          <th>MPU2 Ax</th><th>Ay</th><th>Az</th><th>Gx</th><th>Gy</th><th>Gz</th>
+        </tr>
+      </thead>
+      <tbody id="log-table-body"></tbody>
+    </table>
+    <div class="pagination">
+      <button onclick="changePage(-1)">&laquo; Prev</button>
+      <span id="page-number">Page 1</span>
+      <button onclick="changePage(1)">Next &raquo;</button>
+    </div>
+  </section>
 
-        <section id="graph-page" style="display:none">
-        <h2>📈 Real-time Sensor Graphs</h2>
-    
-        <h4>Accelerometer</h4>
-        <canvas id="accelChart" height="150"></canvas>
-    
-        <h4>Gyroscope</h4>
-        <canvas id="gyroChart" height="150"></canvas>
-        </section>
+  <section id="graph-page" style="display:none">
+    <h2>📈 Real-time Graphs</h2>
+    <h3>MPU1 - Accelerometer</h3>
+    <canvas id="mpu1Accel"></canvas>
+    <h3>MPU1 - Gyroscope</h3>
+    <canvas id="mpu1Gyro"></canvas>
+    <h3>MPU2 - Accelerometer</h3>
+    <canvas id="mpu2Accel"></canvas>
+    <h3>MPU2 - Gyroscope</h3>
+    <canvas id="mpu2Gyro"></canvas>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const apiBase = "https://test-flask-mongo.onrender.com";
+  let page = 1;
 
+  async function loadLogs() {
+    const res = await fetch(`${apiBase}/data?page=${page}`);
+    const data = await res.json();
+    const tbody = document.getElementById("log-table-body");
+    tbody.innerHTML = "";
+    data.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.timestamp}</td>
+        <td>${d.mpu1_ax}</td><td>${d.mpu1_ay}</td><td>${d.mpu1_az}</td>
+        <td>${d.mpu1_gx}</td><td>${d.mpu1_gy}</td><td>${d.mpu1_gz}</td>
+        <td>${d.mpu2_ax}</td><td>${d.mpu2_ay}</td><td>${d.mpu2_az}</td>
+        <td>${d.mpu2_gx}</td><td>${d.mpu2_gy}</td><td>${d.mpu2_gz}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    document.getElementById("page-number").textContent = `Page ${page}`;
+  }
 
-        <section id="stream-page" style="display:none">
-            <h2>📹 Camera Stream (Coming soon)</h2>
-            <p>ESP32-CAM stream will appear here.</p>
-        </section>
-    </main>
+  function changePage(delta) {
+    page = Math.max(1, page + delta);
+    loadLogs();
+  }
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        let page = 1;
-        const apiBase = "https://test-flask-mongo.onrender.com";
+  let charts = {};
 
-        async function loadLogs() {
-            const res = await fetch(`${apiBase}/data?page=${page}`);
-            const data = await res.json();
-            const tbody = document.querySelector("#log-table tbody");
-            tbody.innerHTML = "";
-            data.forEach(row => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${row.timestamp}</td>
-                    <td>${row.accel_x}</td>
-                    <td>${row.accel_y}</td>
-                    <td>${row.accel_z}</td>
-                    <td>${row.gyro_x}</td>
-                    <td>${row.gyro_y}</td>
-                    <td>${row.gyro_z}</td>`;
-                tbody.appendChild(tr);
-            });
-            document.getElementById("page-number").textContent = `Page ${page}`;
-        }
+  async function updateGraphs() {
+    const res = await fetch(`${apiBase}/latest`);
+    const data = await res.json();
 
-        function changePage(delta) {
-            page = Math.max(1, Math.min(page + delta, 10));
-            loadLogs();
-        }
+    const labels = data.map(d => d.timestamp);
 
-        let accelChart, gyroChart;
+    const keys = [
+      ["mpu1Accel", ["mpu1_ax", "mpu1_ay", "mpu1_az"], ["red", "green", "blue"]],
+      ["mpu1Gyro", ["mpu1_gx", "mpu1_gy", "mpu1_gz"], ["orange", "purple", "brown"]],
+      ["mpu2Accel", ["mpu2_ax", "mpu2_ay", "mpu2_az"], ["pink", "teal", "gray"]],
+      ["mpu2Gyro", ["mpu2_gx", "mpu2_gy", "mpu2_gz"], ["cyan", "magenta", "gold"]]
+    ];
 
-    async function updateGraph() {
-        const res = await fetch(`${apiBase}/latest`);
-        const data = await res.json();
+    keys.forEach(([id, fields, colors]) => {
+      const datasets = fields.map((f, i) => ({
+        label: f, borderColor: colors[i], fill: false,
+        data: data.map(d => d[f])
+      }));
 
-        const labels = data.map(d => d.timestamp);
-        const ax = data.map(d => d.accel_x);
-        const ay = data.map(d => d.accel_y);
-        const az = data.map(d => d.accel_z);
-        const gx = data.map(d => d.gyro_x);
-        const gy = data.map(d => d.gyro_y);
-        const gz = data.map(d => d.gyro_z);
+      if (!charts[id]) {
+        charts[id] = new Chart(document.getElementById(id), {
+          type: 'line',
+          data: { labels, datasets },
+          options: { responsive: true }
+        });
+      } else {
+        charts[id].data.labels = labels;
+        charts[id].data.datasets.forEach((ds, i) => {
+          ds.data = data.map(d => d[fields[i]]);
+        });
+        charts[id].update();
+      }
+    });
+  }
 
-        // Accel Chart
-        if (!accelChart) {
-            const ctx1 = document.getElementById("accelChart").getContext("2d");
-            accelChart = new Chart(ctx1, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Accel X', data: ax, borderColor: 'red', fill: false },
-                        { label: 'Accel Y', data: ay, borderColor: 'green', fill: false },
-                        { label: 'Accel Z', data: az, borderColor: 'blue', fill: false }
-                    ]
-                },
-                options: { responsive: true }
-            });
-        } else {
-            accelChart.data.labels = labels;
-            accelChart.data.datasets[0].data = ax;
-            accelChart.data.datasets[1].data = ay;
-            accelChart.data.datasets[2].data = az;
-            accelChart.update();
-        }
+  function showPage(id) {
+    document.getElementById("log-page").style.display = id === "log" ? "block" : "none";
+    document.getElementById("graph-page").style.display = id === "graph" ? "block" : "none";
+  }
 
-        // Gyro Chart
-        if (!gyroChart) {
-            const ctx2 = document.getElementById("gyroChart").getContext("2d");
-            gyroChart = new Chart(ctx2, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Gyro X', data: gx, borderColor: 'orange', fill: false },
-                        { label: 'Gyro Y', data: gy, borderColor: 'purple', fill: false },
-                        { label: 'Gyro Z', data: gz, borderColor: 'brown', fill: false }
-                    ]
-                },
-                options: { responsive: true }
-            });
-        } else {
-            gyroChart.data.labels = labels;
-            gyroChart.data.datasets[0].data = gx;
-            gyroChart.data.datasets[1].data = gy;
-            gyroChart.data.datasets[2].data = gz;
-            gyroChart.update();
-        }
-    }
-
-    setInterval(updateGraph, 2000);
-
-        function showPage(id) {
-            document.getElementById("log-page").style.display = id === 'log' ? "block" : "none";
-            document.getElementById("graph-page").style.display = id === 'graph' ? "block" : "none";
-            document.getElementById("stream-page").style.display = id === 'stream' ? "block" : "none";
-        }
-
-        loadLogs();
-    </script>
+  loadLogs();
+  setInterval(updateGraphs, 2000);
+</script>
 </body>
 </html>
