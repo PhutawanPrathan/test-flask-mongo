@@ -3,3 +3,4 @@ pymongo
 dnspython
 gunicorn
 flask-cors
+paho-mqtt
