@@ -61,10 +61,18 @@ def on_message(client, userdata, msg):
 def mqtt_thread():
     mqtt_client = mqtt.Client()
     mqtt_client.on_message = on_message
-    mqtt_client.connect("localhost", 1883, 60)
-    mqtt_client.subscribe("esp32/mpu1")
-    mqtt_client.subscribe("esp32/mpu2")
-    mqtt_client.loop_forever()
+
+    while True:
+        try:
+            mqtt_client.connect("localhost", 1883, 60)
+            mqtt_client.subscribe("esp32/mpu1")
+            mqtt_client.subscribe("esp32/mpu2")
+            print("🚀 MQTT connected and listening...")
+            mqtt_client.loop_forever()
+        except Exception as e:
+            print("❌ MQTT connection error:", e)
+            time.sleep(5)  # wait before reconnect
+
 
 threading.Thread(target=mqtt_thread, daemon=True).start()
 
