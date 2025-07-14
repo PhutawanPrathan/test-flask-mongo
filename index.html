@@ -67,45 +67,41 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const apiBase = "https://test-flask-mongo.onrender.com";
+  const apiBase = "https://test-flask-mongo.onrender.com";  // ✅ เปลี่ยน URL ตามของคุณ
   let allData = [];
   let currentPage = 1;
   const rowsPerPage = 10;
   let maxPages = 1;
   let charts = {};
 
-  function isNewEntry(newEntry) {
-    return !allData.some(existing => existing.timestamp === newEntry.timestamp);
+  function isNewEntry(entry) {
+    return !allData.some(d => d.timestamp === entry.timestamp);
   }
 
   async function fetchAndUpdate() {
     try {
       const res = await fetch(`${apiBase}/latest`);
-      const latest = await res.json(); // newest to oldest (but we want newest first)
-      const newData = [];
+      const latest = await res.json();
 
       latest.reverse().forEach(entry => {
         if (isNewEntry(entry)) {
-          newData.unshift(entry); // insert at front
+          allData.unshift(entry);  // ใส่ข้อมูลใหม่ไว้ด้านบน
         }
       });
 
-      if (newData.length > 0) {
-        allData = newData.concat(allData); // prepend new data
-        maxPages = Math.ceil(allData.length / rowsPerPage);
+      // จำกัดไว้ที่ 500 รายการ
+      if (allData.length > 500) {
+        allData = allData.slice(0, 500);
+      }
 
-        // Keep at most 500 records to save memory
-        if (allData.length > 500) {
-          allData = allData.slice(0, 500);
-        }
+      maxPages = Math.ceil(allData.length / rowsPerPage);
 
-        if (currentPage === 1) {
-          renderTable();
-        }
+      if (currentPage === 1) {
+        renderTable();
       }
 
     } catch (err) {
-      console.error("Error fetching data:", err);
+      console.error("Error fetching latest:", err);
     }
   }
 
@@ -113,8 +109,8 @@
     const tbody = document.getElementById("log-table-body");
     tbody.innerHTML = "";
 
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const pageData = allData.slice(startIndex, startIndex + rowsPerPage);
+    const start = (currentPage - 1) * rowsPerPage;
+    const pageData = allData.slice(start, start + rowsPerPage);
 
     pageData.forEach(d => {
       const tr = document.createElement("tr");
@@ -144,41 +140,45 @@
   }
 
   async function updateGraphs() {
-    const res = await fetch(`${apiBase}/latest`);
-    const data = await res.json();
+    try {
+      const res = await fetch(`${apiBase}/latest`);
+      const data = await res.json();
 
-    const labels = data.map(d => d.timestamp);
+      const labels = data.map(d => d.timestamp);
 
-    const keys = [
-      ["mpu1Accel", ["mpu1_ax", "mpu1_ay", "mpu1_az"], ["red", "green", "blue"]],
-      ["mpu1Gyro", ["mpu1_gx", "mpu1_gy", "mpu1_gz"], ["orange", "purple", "brown"]],
-      ["mpu2Accel", ["mpu2_ax", "mpu2_ay", "mpu2_az"], ["pink", "teal", "gray"]],
-      ["mpu2Gyro", ["mpu2_gx", "mpu2_gy", "mpu2_gz"], ["cyan", "magenta", "gold"]]
-    ];
+      const keys = [
+        ["mpu1Accel", ["mpu1_ax", "mpu1_ay", "mpu1_az"], ["red", "green", "blue"]],
+        ["mpu1Gyro", ["mpu1_gx", "mpu1_gy", "mpu1_gz"], ["orange", "purple", "brown"]],
+        ["mpu2Accel", ["mpu2_ax", "mpu2_ay", "mpu2_az"], ["pink", "teal", "gray"]],
+        ["mpu2Gyro", ["mpu2_gx", "mpu2_gy", "mpu2_gz"], ["cyan", "magenta", "gold"]]
+      ];
 
-    keys.forEach(([id, fields, colors]) => {
-      const datasets = fields.map((f, i) => ({
-        label: f, borderColor: colors[i], fill: false,
-        data: data.map(d => d[f])
-      }));
+      keys.forEach(([id, fields, colors]) => {
+        const datasets = fields.map((f, i) => ({
+          label: f, borderColor: colors[i], fill: false,
+          data: data.map(d => d[f])
+        }));
 
-      if (!charts[id]) {
-        charts[id] = new Chart(document.getElementById(id), {
-          type: 'line',
-          data: { labels, datasets },
-          options: { responsive: true }
-        });
-      } else {
-        charts[id].data.labels = labels;
-        charts[id].data.datasets.forEach((ds, i) => {
-          ds.data = data.map(d => d[fields[i]]);
-        });
-        charts[id].update();
-      }
-    });
+        if (!charts[id]) {
+          charts[id] = new Chart(document.getElementById(id), {
+            type: 'line',
+            data: { labels, datasets },
+            options: { responsive: true }
+          });
+        } else {
+          charts[id].data.labels = labels;
+          charts[id].data.datasets.forEach((ds, i) => {
+            ds.data = data.map(d => d[fields[i]]);
+          });
+          charts[id].update();
+        }
+      });
+    } catch (err) {
+      console.error("Error updating graphs:", err);
+    }
   }
 
-  // เริ่มต้น
+  // เริ่มโหลด
   fetchAndUpdate();
   updateGraphs();
 
