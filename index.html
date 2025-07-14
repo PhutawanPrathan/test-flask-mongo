@@ -83,10 +83,10 @@
       const res = await fetch(`${apiBase}/latest`);
       const latest = await res.json();
 
-      latest.reverse().forEach(entry => {
-        if (isNewEntry(entry)) {
-          allData.unshift(entry);  // ใส่ข้อมูลใหม่ไว้ด้านบน
-        }
+      latest.forEach(entry => {
+      if (isNewEntry(entry)) {
+      allData.unshift(entry);  // ✅ เพิ่มใหม่สุดไว้บนสุดของ array
+      }
       });
 
       // จำกัดไว้ที่ 500 รายการ
