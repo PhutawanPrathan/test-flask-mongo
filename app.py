@@ -15,6 +15,9 @@ client = MongoClient(uri)
 db = client["sensor_db"]
 collection = db["sensor_data"]
 
+collection.create_index("timestamp", expireAfterSeconds=100)
+print("📦 Index info:", list(collection.index_information()))
+
 latest_data = {
     "mpu1": None,
     "mpu2": None
@@ -74,7 +77,6 @@ def mqtt_thread():
             print("❌ MQTT connection error:", e)
             time.sleep(5)  # wait before reconnect
 
-
 threading.Thread(target=mqtt_thread, daemon=True).start()
 
 @app.route("/data")
@@ -108,4 +110,4 @@ def home():
     return "Flask API for 2x MPU6050 via MQTT (12 fields only)"
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
