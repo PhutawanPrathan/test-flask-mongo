@@ -23,7 +23,10 @@ latest_data = {
     "mpu2": None
 }
 
+last_sent_time = 0  # เพิ่มตรงนี้ด้านบนก่อน
+
 def on_message(client, userdata, msg):
+    global last_sent_time
     try:
         payload = json.loads(msg.payload.decode())
 
@@ -32,35 +35,39 @@ def on_message(client, userdata, msg):
         elif msg.topic == "esp32/mpu2":
             mpu_id = "mpu2"
         else:
-            return  # ไม่สนใจ topic อื่น
+            return
 
         latest_data[mpu_id] = payload
 
         if latest_data["mpu1"] and latest_data["mpu2"]:
-            combined_data = {
-                "timestamp": datetime.now(),
+            current_time = time.time()
+            if current_time - last_sent_time >= 5:
+                combined_data = {
+                    "timestamp": datetime.now(),
+                    "mpu1_ax": latest_data["mpu1"]["accel1X"],
+                    "mpu1_ay": latest_data["mpu1"]["accel1Y"],
+                    "mpu1_az": latest_data["mpu1"]["accel1Z"],
+                    "mpu1_gx": latest_data["mpu1"]["gyro1X"],
+                    "mpu1_gy": latest_data["mpu1"]["gyro1Y"],
+                    "mpu1_gz": latest_data["mpu1"]["gyro1Z"],
+                    "mpu2_ax": latest_data["mpu2"]["accel2X"],
+                    "mpu2_ay": latest_data["mpu2"]["accel2Y"],
+                    "mpu2_az": latest_data["mpu2"]["accel2Z"],
+                    "mpu2_gx": latest_data["mpu2"]["gyro2X"],
+                    "mpu2_gy": latest_data["mpu2"]["gyro2Y"],
+                    "mpu2_gz": latest_data["mpu2"]["gyro2Z"],
+                }
+                collection.insert_one(combined_data)
+                print("✅ Inserted:", combined_data)
+                last_sent_time = current_time  # อัปเดตเวลาที่ส่งล่าสุด
 
-                "mpu1_ax": latest_data["mpu1"]["accel1X"],
-                "mpu1_ay": latest_data["mpu1"]["accel1Y"],
-                "mpu1_az": latest_data["mpu1"]["accel1Z"],
-                "mpu1_gx": latest_data["mpu1"]["gyro1X"],
-                "mpu1_gy": latest_data["mpu1"]["gyro1Y"],
-                "mpu1_gz": latest_data["mpu1"]["gyro1Z"],
-
-                "mpu2_ax": latest_data["mpu2"]["accel2X"],
-                "mpu2_ay": latest_data["mpu2"]["accel2Y"],
-                "mpu2_az": latest_data["mpu2"]["accel2Z"],
-                "mpu2_gx": latest_data["mpu2"]["gyro2X"],
-                "mpu2_gy": latest_data["mpu2"]["gyro2Y"],
-                "mpu2_gz": latest_data["mpu2"]["gyro2Z"],
-            }
-            collection.insert_one(combined_data)
-            print("✅ Inserted:", combined_data)
+            # รีเซ็ตให้รอข้อมูลรอบใหม่
             latest_data["mpu1"] = None
             latest_data["mpu2"] = None
 
     except Exception as e:
         print("❌ Error:", e)
+
 
 def mqtt_thread():
     mqtt_client = mqtt.Client()
