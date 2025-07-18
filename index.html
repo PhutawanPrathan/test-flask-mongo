@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📊 Real-time Sensor Dashboard (MPU1 & MPU2)</title>
+  <title>📊 Real-time Sensor Dashboard (MPU6050 & ESP32-CAM)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; display: flex; }
     nav {
-      width: 200px; background-color: #2c3e50; color: white;
-      height: 100vh; padding-top: 1em;
+      width: 220px; background-color: #2c3e50; color: white;
+      height: 100vh; padding-top: 1em; flex-shrink: 0;
     }
     nav a {
       display: block; padding: 1em; text-decoration: none; color: white;
@@ -15,6 +15,7 @@
     nav a:hover { background-color: #34495e; }
     main {
       flex-grow: 1; padding: 2em; background-color: #f4f4f4;
+      overflow-y: auto; height: 100vh;
     }
     table {
       width: 100%; border-collapse: collapse; margin-top: 1em;
@@ -24,15 +25,20 @@
     }
     th { background-color: #4CAF50; color: white; }
     .pagination button { margin: 0.5em; }
-    canvas { max-width: 100%; }
+    canvas { max-width: 100%; margin-bottom: 2em; }
+    img { max-width: 100%; border: 2px solid #333; margin-top: 1em; }
   </style>
 </head>
 <body>
+
 <nav>
-  <a href="#" onclick="showPage('log')">Log Table</a>
-  <a href="#" onclick="showPage('graph')">Sensor Graphs</a>
+  <a href="#" onclick="showPage('log')">📋 Log Table</a>
+  <a href="#" onclick="showPage('graph')">📈 Sensor Graphs</a>
+  <a href="#" onclick="showPage('esp32')">📷 ESP32-CAM Detection</a>
 </nav>
+
 <main>
+  <!-- Sensor Log Table -->
   <section id="log-page">
     <h2>📋 Sensor Log</h2>
     <table>
@@ -52,6 +58,7 @@
     </div>
   </section>
 
+  <!-- Sensor Graphs -->
   <section id="graph-page" style="display:none">
     <h2>📈 Real-time Graphs</h2>
     <h3>MPU1 - Accelerometer</h3>
@@ -63,19 +70,39 @@
     <h3>MPU2 - Gyroscope</h3>
     <canvas id="mpu2Gyro"></canvas>
   </section>
+
+  <!-- ESP32-CAM Detection -->
+  <section id="esp32-page" style="display:none">
+    <h2>📷 ESP32-CAM Object Detection</h2>
+    <img id="esp32-video" src="/video_feed" alt="ESP32 Live Stream" />
+    <h3>📝 Detection Log</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Label</th>
+          <th>Confidence</th>
+          <th>Distance (cm)</th>
+        </tr>
+      </thead>
+      <tbody id="esp32-log-body"></tbody>
+    </table>
+  </section>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const apiBase = "https://test-flask-mongo.onrender.com";  // ✅ เปลี่ยน URL ตามของคุณ
+  const apiBase = "";  // ✅ ใช้ / เพราะหน้าเว็บนี้รันจาก Flask โดยตรง
   let allData = [];
   let currentPage = 1;
   const rowsPerPage = 10;
   let maxPages = 1;
   let charts = {};
 
-  function isNewEntry(entry) {
-    return !allData.some(d => d.timestamp === entry.timestamp);
+  function showPage(id) {
+    document.getElementById("log-page").style.display = id === "log" ? "block" : "none";
+    document.getElementById("graph-page").style.display = id === "graph" ? "block" : "none";
+    document.getElementById("esp32-page").style.display = id === "esp32" ? "block" : "none";
   }
 
   async function fetchAndUpdate() {
@@ -84,24 +111,20 @@
       const latest = await res.json();
 
       latest.forEach(entry => {
-      if (isNewEntry(entry)) {
-      allData.unshift(entry);  // ✅ เพิ่มใหม่สุดไว้บนสุดของ array
-      }
+        if (!allData.some(d => d.timestamp === entry.timestamp)) {
+          allData.unshift(entry);
+        }
       });
 
-      // จำกัดไว้ที่ 500 รายการ
       if (allData.length > 500) {
         allData = allData.slice(0, 500);
       }
 
       maxPages = Math.ceil(allData.length / rowsPerPage);
-
-      if (currentPage === 1) {
-        renderTable();
-      }
+      if (currentPage === 1) renderTable();
 
     } catch (err) {
-      console.error("Error fetching latest:", err);
+      console.error("Error fetching latest sensor data:", err);
     }
   }
 
@@ -134,28 +157,24 @@
     renderTable();
   }
 
-  function showPage(id) {
-    document.getElementById("log-page").style.display = id === "log" ? "block" : "none";
-    document.getElementById("graph-page").style.display = id === "graph" ? "block" : "none";
-  }
-
   async function updateGraphs() {
     try {
       const res = await fetch(`${apiBase}/latest`);
       const data = await res.json();
-
       const labels = data.map(d => d.timestamp);
 
-      const keys = [
+      const chartDefs = [
         ["mpu1Accel", ["mpu1_ax", "mpu1_ay", "mpu1_az"], ["red", "green", "blue"]],
         ["mpu1Gyro", ["mpu1_gx", "mpu1_gy", "mpu1_gz"], ["orange", "purple", "brown"]],
         ["mpu2Accel", ["mpu2_ax", "mpu2_ay", "mpu2_az"], ["pink", "teal", "gray"]],
         ["mpu2Gyro", ["mpu2_gx", "mpu2_gy", "mpu2_gz"], ["cyan", "magenta", "gold"]]
       ];
 
-      keys.forEach(([id, fields, colors]) => {
+      chartDefs.forEach(([id, fields, colors]) => {
         const datasets = fields.map((f, i) => ({
-          label: f, borderColor: colors[i], fill: false,
+          label: f,
+          borderColor: colors[i],
+          fill: false,
           data: data.map(d => d[f])
         }));
 
@@ -178,14 +197,36 @@
     }
   }
 
-  // เริ่มโหลด
+  async function updateESP32Detections() {
+    try {
+      const res = await fetch(`${apiBase}/esp32_detections`);
+      const data = await res.json();
+
+      const tbody = document.getElementById("esp32-log-body");
+      tbody.innerHTML = "";
+      data.forEach(d => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${d.timestamp}</td>
+          <td>${d.label}</td>
+          <td>${d.confidence}</td>
+          <td>${d.distance_cm}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (err) {
+      console.error("Error fetching ESP32 detections:", err);
+    }
+  }
+
   fetchAndUpdate();
   updateGraphs();
+  updateESP32Detections();
 
-  // เรียกซ้ำทุก 2 วิ
   setInterval(() => {
     fetchAndUpdate();
     updateGraphs();
+    updateESP32Detections();
   }, 2000);
 </script>
 </body>
