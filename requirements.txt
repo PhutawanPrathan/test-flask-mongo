@@ -8,7 +8,6 @@ requests
 numpy
 opencv-python
 ultralytics 
-json
 time
 threading
 datetime
