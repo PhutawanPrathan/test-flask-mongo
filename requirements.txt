@@ -4,3 +4,11 @@ dnspython
 gunicorn
 flask-cors
 paho-mqtt
+requests
+numpy
+cv2
+ultralytics 
+json
+time
+threading
+datetime
