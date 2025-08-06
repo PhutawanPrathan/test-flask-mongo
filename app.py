@@ -17,6 +17,7 @@ collection = db["sensor_data"]
 
 collection.create_index("timestamp", expireAfterSeconds=100)
 print("📦 Index info:", list(collection.index_information()))
+
 latest_data = {
     "mpu1": None,
     "mpu2": None
@@ -45,7 +46,13 @@ def on_message(client, userdata, msg):
                     "timestamp": datetime.now(),
                     "mpu1_ax": latest_data["mpu1"]["accel1X"],
                     "mpu1_ay": latest_data["mpu1"]["accel1Y"],
-@@ -56,65 +139,64 @@ def on_message(client, userdata, msg):
+                    "mpu1_az": latest_data["mpu1"]["accel1Z"],
+                    "mpu1_gx": latest_data["mpu1"]["gyro1X"],
+                    "mpu1_gy": latest_data["mpu1"]["gyro1Y"],
+                    "mpu1_gz": latest_data["mpu1"]["gyro1Z"],
+                    "mpu2_ax": latest_data["mpu2"]["accel2X"],
+                    "mpu2_ay": latest_data["mpu2"]["accel2Y"],
+                    "mpu2_az": latest_data["mpu2"]["accel2Z"],
                     "mpu2_gx": latest_data["mpu2"]["gyro2X"],
                     "mpu2_gy": latest_data["mpu2"]["gyro2Y"],
                     "mpu2_gz": latest_data["mpu2"]["gyro2Z"],
@@ -108,4 +115,6 @@ def get_latest():
 @app.route("/")
 def home():
     return "Flask API for 2x MPU6050 via MQTT (12 fields only)"
+
 if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
