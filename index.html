@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -14,16 +15,16 @@
     nav a:hover { background-color: #34495e; }
     main {
       flex-grow: 1; padding: 2em; background-color: #f4f4f4;
-
     }
     table {
       width: 100%; border-collapse: collapse; margin-top: 1em;
-@@ -24,15 +25,20 @@
+    }
+    th, td {
+      border: 1px solid #ccc; padding: 8px; text-align: center;
     }
     th { background-color: #4CAF50; color: white; }
     .pagination button { margin: 0.5em; }
     canvas { max-width: 100%; }
-
   </style>
 </head>
 <body>
@@ -35,17 +36,35 @@
   <section id="log-page">
     <h2>📋 Sensor Log</h2>
     <table>
-@@ -52,6 +58,7 @@ <h2>📋 Sensor Log</h2>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>MPU1 Ax</th><th>Ay</th><th>Az</th><th>Gx</th><th>Gy</th><th>Gz</th>
+          <th>MPU2 Ax</th><th>Ay</th><th>Az</th><th>Gx</th><th>Gy</th><th>Gz</th>
+        </tr>
+      </thead>
+      <tbody id="log-table-body"></tbody>
+    </table>
+    <div class="pagination">
+      <button onclick="changePage(-1)">&laquo; Prev</button>
+      <span id="page-number">Page 1</span>
+      <button onclick="changePage(1)">Next &raquo;</button>
     </div>
   </section>
+
   <section id="graph-page" style="display:none">
     <h2>📈 Real-time Graphs</h2>
     <h3>MPU1 - Accelerometer</h3>
-@@ -63,19 +70,39 @@ <h3>MPU2 - Accelerometer</h3>
+    <canvas id="mpu1Accel"></canvas>
+    <h3>MPU1 - Gyroscope</h3>
+    <canvas id="mpu1Gyro"></canvas>
+    <h3>MPU2 - Accelerometer</h3>
+    <canvas id="mpu2Accel"></canvas>
     <h3>MPU2 - Gyroscope</h3>
     <canvas id="mpu2Gyro"></canvas>
   </section>
 </main>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   const apiBase = "https://test-flask-mongo.onrender.com";  // ✅ เปลี่ยน URL ตามของคุณ
@@ -57,12 +76,11 @@
 
   function isNewEntry(entry) {
     return !allData.some(d => d.timestamp === entry.timestamp);
-
-
   }
 
   async function fetchAndUpdate() {
-@@ -84,24 +111,20 @@ <h3>MPU2 - Gyroscope</h3>
+    try {
+      const res = await fetch(`${apiBase}/latest`);
       const latest = await res.json();
 
       latest.forEach(entry => {
@@ -87,7 +105,32 @@
     }
   }
 
-@@ -134,28 +157,24 @@ <h3>MPU2 - Gyroscope</h3>
+  function renderTable() {
+    const tbody = document.getElementById("log-table-body");
+    tbody.innerHTML = "";
+
+    const start = (currentPage - 1) * rowsPerPage;
+    const pageData = allData.slice(start, start + rowsPerPage);
+
+    pageData.forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.timestamp}</td>
+        <td>${d.mpu1_ax}</td><td>${d.mpu1_ay}</td><td>${d.mpu1_az}</td>
+        <td>${d.mpu1_gx}</td><td>${d.mpu1_gy}</td><td>${d.mpu1_gz}</td>
+        <td>${d.mpu2_ax}</td><td>${d.mpu2_ay}</td><td>${d.mpu2_az}</td>
+        <td>${d.mpu2_gx}</td><td>${d.mpu2_gy}</td><td>${d.mpu2_gz}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("page-number").textContent = `Page ${currentPage} of ${maxPages}`;
+  }
+
+  function changePage(delta) {
+    currentPage += delta;
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > maxPages) currentPage = maxPages;
     renderTable();
   }
 
@@ -116,12 +159,29 @@
           data: data.map(d => d[f])
         }));
 
-@@ -178,14 +197,36 @@ <h3>MPU2 - Gyroscope</h3>
+        if (!charts[id]) {
+          charts[id] = new Chart(document.getElementById(id), {
+            type: 'line',
+            data: { labels, datasets },
+            options: { responsive: true }
+          });
+        } else {
+          charts[id].data.labels = labels;
+          charts[id].data.datasets.forEach((ds, i) => {
+            ds.data = data.map(d => d[fields[i]]);
+          });
+          charts[id].update();
+        }
+      });
+    } catch (err) {
+      console.error("Error updating graphs:", err);
     }
   }
+
   // เริ่มโหลด
   fetchAndUpdate();
   updateGraphs();
+
   // เรียกซ้ำทุก 2 วิ
   setInterval(() => {
     fetchAndUpdate();
@@ -129,3 +189,4 @@
   }, 2000);
 </script>
 </body>
+</html>
