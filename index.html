@@ -2,191 +2,733 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📊 Real-time Sensor Dashboard (MPU1 & MPU2)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚀 Advanced Sensor Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; display: flex; }
-    nav {
-      width: 200px; background-color: #2c3e50; color: white;
-      height: 100vh; padding-top: 1em;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    nav a {
-      display: block; padding: 1em; text-decoration: none; color: white;
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      overflow-x: hidden;
     }
-    nav a:hover { background-color: #34495e; }
-    main {
-      flex-grow: 1; padding: 2em; background-color: #f4f4f4;
+
+    .container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 100vh;
+      gap: 0;
     }
-    table {
-      width: 100%; border-collapse: collapse; margin-top: 1em;
+
+    /* Sidebar */
+    .sidebar {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 2rem 0;
+      position: relative;
+      overflow: hidden;
     }
-    th, td {
-      border: 1px solid #ccc; padding: 8px; text-align: center;
+
+    .sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+      pointer-events: none;
     }
-    th { background-color: #4CAF50; color: white; }
-    .pagination button { margin: 0.5em; }
-    canvas { max-width: 100%; }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 3rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo h1 {
+      color: white;
+      font-size: 1.5rem;
+      font-weight: 300;
+      letter-spacing: 2px;
+    }
+
+    .nav-menu {
+      position: relative;
+      z-index: 1;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 1rem 2rem;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      transition: all 0.3s ease;
+      border-left: 3px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .nav-item:hover::before {
+      left: 100%;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+      border-left-color: #00d4ff;
+      transform: translateX(10px);
+    }
+
+    .nav-item i {
+      margin-right: 12px;
+      width: 20px;
+    }
+
+    /* Main Content */
+    .main-content {
+      padding: 2rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      overflow-y: auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #4CAF50;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+      border-radius: 15px;
+      padding: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #667eea;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    /* Chart Container */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .chart-container {
+      background: white;
+      border-radius: 20px;
+      padding: 1.5rem;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .chart-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #00d4ff);
+      animation: shimmer 3s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { left: -100%; }
+      50% { left: 100%; }
+      100% { left: 100%; }
+    }
+
+    .chart-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chart-canvas {
+      position: relative;
+      height: 300px;
+    }
+
+    /* Table Styles */
+    .table-container {
+      background: white;
+      border-radius: 20px;
+      padding: 1.5rem;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .data-table th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1rem 0.5rem;
+      text-align: center;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+    }
+
+    .data-table td {
+      padding: 0.8rem 0.5rem;
+      text-align: center;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background-color 0.2s ease;
+    }
+
+    .data-table tr:hover td {
+      background-color: #f8f9ff;
+    }
+
+    .data-table tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .pagination button {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 25px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .pagination button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .page-info {
+      padding: 0.8rem 1.5rem;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 25px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+      
+      .sidebar {
+        padding: 1rem 0;
+      }
+      
+      .nav-item {
+        padding: 0.8rem 1rem;
+      }
+      
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Loading Animation */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .hidden { display: none; }
   </style>
 </head>
 <body>
-<nav>
-  <a href="#" onclick="showPage('log')">Log Table</a>
-  <a href="#" onclick="showPage('graph')">Sensor Graphs</a>
-</nav>
-<main>
-  <section id="log-page">
-    <h2>📋 Sensor Log</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th>MPU1 Ax</th><th>Ay</th><th>Az</th><th>Gx</th><th>Gy</th><th>Gz</th>
-          <th>MPU2 Ax</th><th>Ay</th><th>Az</th><th>Gx</th><th>Gy</th><th>Gz</th>
-        </tr>
-      </thead>
-      <tbody id="log-table-body"></tbody>
-    </table>
-    <div class="pagination">
-      <button onclick="changePage(-1)">&laquo; Prev</button>
-      <span id="page-number">Page 1</span>
-      <button onclick="changePage(1)">Next &raquo;</button>
-    </div>
-  </section>
+  <div class="container">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <h1>🚀 SENSOR HUB</h1>
+      </div>
+      <div class="nav-menu">
+        <a href="#" class="nav-item active" onclick="showPage('dashboard')" data-page="dashboard">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="#" class="nav-item" onclick="showPage('log')" data-page="log">
+          <span>📋</span> Data Log
+        </a>
+        <a href="#" class="nav-item" onclick="showPage('analytics')" data-page="analytics">
+          <span>📈</span> Analytics
+        </a>
+      </div>
+    </nav>
 
-  <section id="graph-page" style="display:none">
-    <h2>📈 Real-time Graphs</h2>
-    <h3>MPU1 - Accelerometer</h3>
-    <canvas id="mpu1Accel"></canvas>
-    <h3>MPU1 - Gyroscope</h3>
-    <canvas id="mpu1Gyro"></canvas>
-    <h3>MPU2 - Accelerometer</h3>
-    <canvas id="mpu2Accel"></canvas>
-    <h3>MPU2 - Gyroscope</h3>
-    <canvas id="mpu2Gyro"></canvas>
-  </section>
-</main>
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Dashboard Page -->
+      <section id="dashboard-page">
+        <div class="header">
+          <h2>Real-time Sensor Dashboard</h2>
+          <div class="status-indicator">
+            <div class="status-dot"></div>
+            <span>Live Data</span>
+            <div class="loading" id="loading-indicator" style="display: none;"></div>
+          </div>
+        </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  const apiBase = "https://test-flask-mongo.onrender.com";  // ✅ เปลี่ยน URL ตามของคุณ
-  let allData = [];
-  let currentPage = 1;
-  const rowsPerPage = 10;
-  let maxPages = 1;
-  let charts = {};
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="mpu1-status">●</div>
+            <div class="stat-label">MPU1 Status</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="mpu2-status">●</div>
+            <div class="stat-label">MPU2 Status</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="data-points">0</div>
+            <div class="stat-label">Data Points</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="last-update">--:--</div>
+            <div class="stat-label">Last Update</div>
+          </div>
+        </div>
 
-  function isNewEntry(entry) {
-    return !allData.some(d => d.timestamp === entry.timestamp);
-  }
+        <div class="chart-grid">
+          <div class="chart-container">
+            <div class="chart-title">🎯 MPU1 - Accelerometer</div>
+            <div class="chart-canvas">
+              <canvas id="mpu1Accel"></canvas>
+            </div>
+          </div>
+          <div class="chart-container">
+            <div class="chart-title">🌪️ MPU1 - Gyroscope</div>
+            <div class="chart-canvas">
+              <canvas id="mpu1Gyro"></canvas>
+            </div>
+          </div>
+          <div class="chart-container">
+            <div class="chart-title">🎯 MPU2 - Accelerometer</div>
+            <div class="chart-canvas">
+              <canvas id="mpu2Accel"></canvas>
+            </div>
+          </div>
+          <div class="chart-container">
+            <div class="chart-title">🌪️ MPU2 - Gyroscope</div>
+            <div class="chart-canvas">
+              <canvas id="mpu2Gyro"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  async function fetchAndUpdate() {
-    try {
-      const res = await fetch(`${apiBase}/latest`);
-      const latest = await res.json();
+      <!-- Log Page -->
+      <section id="log-page" class="hidden">
+        <div class="header">
+          <h2>📋 Sensor Data Log</h2>
+          <div class="status-indicator">
+            <span id="total-records">0 records</span>
+          </div>
+        </div>
 
-      latest.forEach(entry => {
-      if (isNewEntry(entry)) {
-      allData.unshift(entry);  // ✅ เพิ่มใหม่สุดไว้บนสุดของ array
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th colspan="3">MPU1 Accel (X,Y,Z)</th>
+                <th colspan="3">MPU1 Gyro (X,Y,Z)</th>
+                <th colspan="3">MPU2 Accel (X,Y,Z)</th>
+                <th colspan="3">MPU2 Gyro (X,Y,Z)</th>
+              </tr>
+            </thead>
+            <tbody id="log-table-body"></tbody>
+          </table>
+          
+          <div class="pagination">
+            <button onclick="changePage(-1)" id="prev-btn">← Previous</button>
+            <div class="page-info" id="page-info">Page 1 of 1</div>
+            <button onclick="changePage(1)" id="next-btn">Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analytics Page -->
+      <section id="analytics-page" class="hidden">
+        <div class="header">
+          <h2>📈 Advanced Analytics</h2>
+          <div class="status-indicator">
+            <span>Statistical Analysis</span>
+          </div>
+        </div>
+        
+        <div class="chart-grid">
+          <div class="chart-container">
+            <div class="chart-title">📊 Data Distribution</div>
+            <div class="chart-canvas">
+              <canvas id="distributionChart"></canvas>
+            </div>
+          </div>
+          <div class="chart-container">
+            <div class="chart-title">🎭 Correlation Matrix</div>
+            <div class="chart-canvas">
+              <canvas id="correlationChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const apiBase = "https://test-flask-mongo.onrender.com";
+    let allData = [];
+    let currentPage = 1;
+    const rowsPerPage = 15;
+    let maxPages = 1;
+    let charts = {};
+
+    // Chart configurations
+    const chartConfigs = {
+      mpu1Accel: {
+        fields: ['mpu1_ax', 'mpu1_ay', 'mpu1_az'],
+        colors: ['#FF6B6B', '#4ECDC4', '#45B7D1'],
+        labels: ['X-Axis', 'Y-Axis', 'Z-Axis']
+      },
+      mpu1Gyro: {
+        fields: ['mpu1_gx', 'mpu1_gy', 'mpu1_gz'],
+        colors: ['#96CEB4', '#FFEAA7', '#DDA0DD'],
+        labels: ['X-Rotation', 'Y-Rotation', 'Z-Rotation']
+      },
+      mpu2Accel: {
+        fields: ['mpu2_ax', 'mpu2_ay', 'mpu2_az'],
+        colors: ['#FF7675', '#74B9FF', '#A29BFE'],
+        labels: ['X-Axis', 'Y-Axis', 'Z-Axis']
+      },
+      mpu2Gyro: {
+        fields: ['mpu2_gx', 'mpu2_gy', 'mpu2_gz'],
+        colors: ['#FD79A8', '#FDCB6E', '#6C5CE7'],
+        labels: ['X-Rotation', 'Y-Rotation', 'Z-Rotation']
       }
-      });
+    };
 
-      // จำกัดไว้ที่ 500 รายการ
-      if (allData.length > 500) {
-        allData = allData.slice(0, 500);
-      }
-
-      maxPages = Math.ceil(allData.length / rowsPerPage);
-
-      if (currentPage === 1) {
-        renderTable();
-      }
-
-    } catch (err) {
-      console.error("Error fetching latest:", err);
+    function showLoading() {
+      document.getElementById('loading-indicator').style.display = 'inline-block';
     }
-  }
 
-  function renderTable() {
-    const tbody = document.getElementById("log-table-body");
-    tbody.innerHTML = "";
+    function hideLoading() {
+      document.getElementById('loading-indicator').style.display = 'none';
+    }
 
-    const start = (currentPage - 1) * rowsPerPage;
-    const pageData = allData.slice(start, start + rowsPerPage);
+    function isNewEntry(entry) {
+      return !allData.some(d => d.timestamp === entry.timestamp);
+    }
 
-    pageData.forEach(d => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${d.timestamp}</td>
-        <td>${d.mpu1_ax}</td><td>${d.mpu1_ay}</td><td>${d.mpu1_az}</td>
-        <td>${d.mpu1_gx}</td><td>${d.mpu1_gy}</td><td>${d.mpu1_gz}</td>
-        <td>${d.mpu2_ax}</td><td>${d.mpu2_ay}</td><td>${d.mpu2_az}</td>
-        <td>${d.mpu2_gx}</td><td>${d.mpu2_gy}</td><td>${d.mpu2_gz}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+    async function fetchAndUpdate() {
+      showLoading();
+      try {
+        const res = await fetch(`${apiBase}/latest`);
+        const latest = await res.json();
 
-    document.getElementById("page-number").textContent = `Page ${currentPage} of ${maxPages}`;
-  }
+        latest.forEach(entry => {
+          if (isNewEntry(entry)) {
+            allData.unshift(entry);
+          }
+        });
 
-  function changePage(delta) {
-    currentPage += delta;
-    if (currentPage < 1) currentPage = 1;
-    if (currentPage > maxPages) currentPage = maxPages;
-    renderTable();
-  }
+        if (allData.length > 1000) {
+          allData = allData.slice(0, 1000);
+        }
 
-  function showPage(id) {
-    document.getElementById("log-page").style.display = id === "log" ? "block" : "none";
-    document.getElementById("graph-page").style.display = id === "graph" ? "block" : "none";
-  }
+        maxPages = Math.ceil(allData.length / rowsPerPage);
+        updateStats();
 
-  async function updateGraphs() {
-    try {
-      const res = await fetch(`${apiBase}/latest`);
-      const data = await res.json();
+        if (currentPage === 1) {
+          renderTable();
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      } finally {
+        hideLoading();
+      }
+    }
 
-      const labels = data.map(d => d.timestamp);
+    function updateStats() {
+      document.getElementById('data-points').textContent = allData.length;
+      document.getElementById('total-records').textContent = `${allData.length} records`;
+      
+      if (allData.length > 0) {
+        const lastUpdate = new Date(allData[0].timestamp);
+        document.getElementById('last-update').textContent = 
+          lastUpdate.toLocaleTimeString();
+        
+        // Update MPU status
+        document.getElementById('mpu1-status').textContent = '🟢';
+        document.getElementById('mpu2-status').textContent = '🟢';
+      }
+    }
 
-      const keys = [
-        ["mpu1Accel", ["mpu1_ax", "mpu1_ay", "mpu1_az"], ["red", "green", "blue"]],
-        ["mpu1Gyro", ["mpu1_gx", "mpu1_gy", "mpu1_gz"], ["orange", "purple", "brown"]],
-        ["mpu2Accel", ["mpu2_ax", "mpu2_ay", "mpu2_az"], ["pink", "teal", "gray"]],
-        ["mpu2Gyro", ["mpu2_gx", "mpu2_gy", "mpu2_gz"], ["cyan", "magenta", "gold"]]
-      ];
-
-      keys.forEach(([id, fields, colors]) => {
-        const datasets = fields.map((f, i) => ({
-          label: f, borderColor: colors[i], fill: false,
-          data: data.map(d => d[f])
-        }));
-
-        if (!charts[id]) {
-          charts[id] = new Chart(document.getElementById(id), {
-            type: 'line',
-            data: { labels, datasets },
-            options: { responsive: true }
-          });
-        } else {
-          charts[id].data.labels = labels;
-          charts[id].data.datasets.forEach((ds, i) => {
-            ds.data = data.map(d => d[fields[i]]);
-          });
-          charts[id].update();
+    function createChart(canvasId, config) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: config.fields.map((field, index) => ({
+            label: config.labels[index],
+            data: [],
+            borderColor: config.colors[index],
+            backgroundColor: config.colors[index] + '20',
+            borderWidth: 2,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 4
+          }))
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 20
+              }
+            }
+          },
+          scales: {
+            x: {
+              display: false
+            },
+            y: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)'
+              }
+            }
+          },
+          animation: {
+            duration: 750
+          }
         }
       });
-    } catch (err) {
-      console.error("Error updating graphs:", err);
     }
-  }
 
-  // เริ่มโหลด
-  fetchAndUpdate();
-  updateGraphs();
+    function updateCharts() {
+      if (allData.length === 0) return;
 
-  // เรียกซ้ำทุก 2 วิ
-  setInterval(() => {
-    fetchAndUpdate();
-    updateGraphs();
-  }, 2000);
-</script>
+      const recentData = allData.slice(0, 50).reverse();
+      const labels = recentData.map((d, i) => i);
+
+      Object.entries(chartConfigs).forEach(([chartId, config]) => {
+        if (!charts[chartId]) {
+          charts[chartId] = createChart(chartId, config);
+        }
+
+        charts[chartId].data.labels = labels;
+        
+        config.fields.forEach((field, index) => {
+          charts[chartId].data.datasets[index].data = 
+            recentData.map(d => parseFloat(d[field]) || 0);
+        });
+
+        charts[chartId].update('none');
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("log-table-body");
+      tbody.innerHTML = "";
+
+      const start = (currentPage - 1) * rowsPerPage;
+      const pageData = allData.slice(start, start + rowsPerPage);
+
+      pageData.forEach(d => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${new Date(d.timestamp).toLocaleString()}</td>
+          <td>${(+d.mpu1_ax).toFixed(3)}</td>
+          <td>${(+d.mpu1_ay).toFixed(3)}</td>
+          <td>${(+d.mpu1_az).toFixed(3)}</td>
+          <td>${(+d.mpu1_gx).toFixed(3)}</td>
+          <td>${(+d.mpu1_gy).toFixed(3)}</td>
+          <td>${(+d.mpu1_gz).toFixed(3)}</td>
+          <td>${(+d.mpu2_ax).toFixed(3)}</td>
+          <td>${(+d.mpu2_ay).toFixed(3)}</td>
+          <td>${(+d.mpu2_az).toFixed(3)}</td>
+          <td>${(+d.mpu2_gx).toFixed(3)}</td>
+          <td>${(+d.mpu2_gy).toFixed(3)}</td>
+          <td>${(+d.mpu2_gz).toFixed(3)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("page-info").textContent = 
+        `Page ${currentPage} of ${maxPages}`;
+      
+      document.getElementById("prev-btn").disabled = currentPage === 1;
+      document.getElementById("next-btn").disabled = currentPage === maxPages;
+    }
+
+    function changePage(delta) {
+      currentPage += delta;
+      if (currentPage < 1) currentPage = 1;
+      if (currentPage > maxPages) currentPage = maxPages;
+      renderTable();
+    }
+
+    function showPage(pageId) {
+      // Hide all pages
+      document.querySelectorAll('section').forEach(section => {
+        section.classList.add('hidden');
+      });
+      
+      // Remove active class from all nav items
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      
+      // Show selected page
+      document.getElementById(pageId + '-page').classList.remove('hidden');
+      
+      // Add active class to selected nav item
+      document.querySelector(`[data-page="${pageId}"]`).classList.add('active');
+      
+      // Update charts if dashboard is selected
+      if (pageId === 'dashboard') {
+        setTimeout(updateCharts, 100);
+      }
+    }
+
+    // Initialize
+    async function init() {
+      await fetchAndUpdate();
+      updateCharts();
+      renderTable();
+    }
+
+    // Start the application
+    init();
+
+    // Update every 2 seconds
+    setInterval(async () => {
+      await fetchAndUpdate();
+      updateCharts();
+    }, 2000);
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      Object.values(charts).forEach(chart => {
+        if (chart) chart.resize();
+      });
+    });
+  </script>
 </body>
 </html>
