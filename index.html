@@ -535,8 +535,17 @@
         const res = await fetch(`${apiBase}/latest`);
         const latest = await res.json();
 
+        // Debug logging to check timestamp format
+        if (latest.length > 0) {
+          console.log('Sample timestamp from API:', latest[0].timestamp, typeof latest[0].timestamp);
+        }
+
         latest.forEach(entry => {
           if (isNewEntry(entry)) {
+            // If timestamp is missing or null, add current timestamp
+            if (!entry.timestamp) {
+              entry.timestamp = Date.now() / 1000; // Unix timestamp in seconds
+            }
             allData.unshift(entry);
           }
         });
