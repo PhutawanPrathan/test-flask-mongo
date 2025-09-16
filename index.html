@@ -587,12 +587,20 @@
         
         // Update last update time
         if (status.last_update) {
-          const lastTime = new Date(status.last_update).toLocaleTimeString();
-          document.getElementById('last-update').textContent = lastTime;
+          try {
+            const lastTime = new Date(status.last_update).toLocaleTimeString();
+            document.getElementById('last-update').textContent = lastTime;
+          } catch (e) {
+            document.getElementById('last-update').textContent = 'Error';
+          }
         } else if (allData.length > 0) {
-          const lastEntry = allData[0];
-          const lastTime = new Date(lastEntry.timestamp).toLocaleTimeString();
-          document.getElementById('last-update').textContent = lastTime;
+          try {
+            const lastEntry = allData[0];
+            const lastTime = new Date(lastEntry.timestamp).toLocaleTimeString();
+            document.getElementById('last-update').textContent = lastTime;
+          } catch (e) {
+            document.getElementById('last-update').textContent = 'Error';
+          }
         }
         
       } catch (error) {
@@ -647,9 +655,20 @@
 
       pageData.forEach(d => {
         const tr = document.createElement("tr");
-        const timestamp = new Date(d.timestamp).toLocaleString();
+        
+        // Handle timestamp properly - convert ISO string to readable format
+        let displayTime = "--:--";
+        try {
+          const date = new Date(d.timestamp);
+          if (!isNaN(date.getTime())) {
+            displayTime = date.toLocaleString(); // Shows both date and time
+          }
+        } catch (e) {
+          console.error('Error parsing timestamp:', d.timestamp);
+        }
+        
         tr.innerHTML = `
-          <td style="font-weight: 500; color: #667eea;">${timestamp}</td>
+          <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
           <td>${parseFloat(d.mpu1_ax).toFixed(2)}</td><td>${parseFloat(d.mpu1_ay).toFixed(2)}</td><td>${parseFloat(d.mpu1_az).toFixed(2)}</td>
           <td>${parseFloat(d.mpu1_gx).toFixed(2)}</td><td>${parseFloat(d.mpu1_gy).toFixed(2)}</td><td>${parseFloat(d.mpu1_gz).toFixed(2)}</td>
           <td>${parseFloat(d.mpu2_ax).toFixed(2)}</td><td>${parseFloat(d.mpu2_ay).toFixed(2)}</td><td>${parseFloat(d.mpu2_az).toFixed(2)}</td>
@@ -703,12 +722,18 @@
         // Limit to last 50 points for better performance
         const chartData = data.slice(0, 50).reverse();
         const labels = chartData.map(d => {
-          const date = new Date(d.timestamp);
-          // Check if date is valid
-          if (isNaN(date.getTime())) {
-            return 'Invalid Time';
+          try {
+            const date = new Date(d.timestamp);
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+              console.warn('Invalid timestamp:', d.timestamp);
+              return 'Invalid Time';
+            }
+            return date.toLocaleTimeString();
+          } catch (e) {
+            console.error('Error parsing timestamp for chart:', d.timestamp, e);
+            return 'Error';
           }
-          return date.toLocaleTimeString();
         });
 
         const chartConfigs = [
