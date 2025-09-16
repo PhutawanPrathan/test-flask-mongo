@@ -197,6 +197,11 @@
       color: #27ae60;
     }
 
+    .status-offline {
+      background: rgba(231, 76, 60, 0.2);
+      color: #e74c3c;
+    }
+
     /* Data Table */
     .data-table-container {
       background: rgba(255, 255, 255, 0.95);
@@ -542,12 +547,63 @@
       return !allData.some(d => d.timestamp === entry.timestamp);
     }
 
-    function updateDashboardStats() {
-      document.getElementById('data-count').textContent = allData.length;
-      if (allData.length > 0) {
-        const lastEntry = allData[0];
-        const lastTime = new Date(lastEntry.timestamp).toLocaleTimeString();
-        document.getElementById('last-update').textContent = lastTime;
+    async function updateDashboardStats() {
+      try {
+        // Fetch status from new status endpoint
+        const statusRes = await fetch(`${apiBase}/status`);
+        const status = await statusRes.json();
+        
+        if (status.total_records) {
+          document.getElementById('data-count').textContent = status.total_records;
+        } else {
+          document.getElementById('data-count').textContent = allData.length;
+        }
+        
+        // Update sensor status
+        const mpu1Status = document.getElementById('mpu1-status');
+        const mpu1Indicator = document.getElementById('mpu1-indicator');
+        const mpu2Status = document.getElementById('mpu2-status');
+        const mpu2Indicator = document.getElementById('mpu2-indicator');
+        
+        if (status.mpu1_online) {
+          mpu1Status.textContent = 'Online';
+          mpu1Indicator.textContent = 'Active';
+          mpu1Indicator.className = 'card-status status-online';
+        } else {
+          mpu1Status.textContent = 'Offline';
+          mpu1Indicator.textContent = 'Inactive';
+          mpu1Indicator.className = 'card-status status-offline';
+        }
+        
+        if (status.mpu2_online) {
+          mpu2Status.textContent = 'Online';
+          mpu2Indicator.textContent = 'Active';
+          mpu2Indicator.className = 'card-status status-online';
+        } else {
+          mpu2Status.textContent = 'Offline';
+          mpu2Indicator.textContent = 'Inactive';
+          mpu2Indicator.className = 'card-status status-offline';
+        }
+        
+        // Update last update time
+        if (status.last_update) {
+          const lastTime = new Date(status.last_update).toLocaleTimeString();
+          document.getElementById('last-update').textContent = lastTime;
+        } else if (allData.length > 0) {
+          const lastEntry = allData[0];
+          const lastTime = new Date(lastEntry.timestamp).toLocaleTimeString();
+          document.getElementById('last-update').textContent = lastTime;
+        }
+        
+      } catch (error) {
+        console.error('Error updating dashboard stats:', error);
+        // Fallback to local data
+        document.getElementById('data-count').textContent = allData.length;
+        if (allData.length > 0) {
+          const lastEntry = allData[0];
+          const lastTime = new Date(lastEntry.timestamp).toLocaleTimeString();
+          document.getElementById('last-update').textContent = lastTime;
+        }
       }
     }
 
@@ -646,7 +702,14 @@
 
         // Limit to last 50 points for better performance
         const chartData = data.slice(0, 50).reverse();
-        const labels = chartData.map(d => new Date(d.timestamp).toLocaleTimeString());
+        const labels = chartData.map(d => {
+          const date = new Date(d.timestamp);
+          // Check if date is valid
+          if (isNaN(date.getTime())) {
+            return 'Invalid Time';
+          }
+          return date.toLocaleTimeString();
+        });
 
         const chartConfigs = [
           {
