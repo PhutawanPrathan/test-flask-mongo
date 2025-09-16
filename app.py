@@ -23,7 +23,7 @@ latest_data = {
     "mpu2": None
 }
 
-last_sent_time = 0  # เพิ่มตรงนี้ด้านบนก่อน
+last_sent_time = 0
 
 def on_message(client, userdata, msg):
     global last_sent_time
@@ -59,7 +59,7 @@ def on_message(client, userdata, msg):
                 }
                 collection.insert_one(combined_data)
                 print("✅ Inserted:", combined_data)
-                last_sent_time = current_time  # อัปเดตเวลาที่ส่งล่าสุด
+                last_sent_time = current_time
 
             # รีเซ็ตให้รอข้อมูลรอบใหม่
             latest_data["mpu1"] = None
@@ -82,7 +82,7 @@ def mqtt_thread():
             mqtt_client.loop_forever()
         except Exception as e:
             print("❌ MQTT connection error:", e)
-            time.sleep(5)  # wait before reconnect
+            time.sleep(5)
 
 threading.Thread(target=mqtt_thread, daemon=True).start()
 
@@ -93,28 +93,91 @@ def get_data():
         per_page = 10
         skip = (page - 1) * per_page
         data = list(collection.find().sort("timestamp", -1).skip(skip).limit(per_page))
-        return jsonify([
-            {
-                "timestamp": d["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
+        result = []
+        
+        for d in data:
+            # Convert MongoDB datetime to ISO string format
+            timestamp = d["timestamp"]
+            if hasattr(timestamp, 'isoformat'):
+                timestamp_str = timestamp.isoformat()
+            else:
+                timestamp_str = str(timestamp)
+            
+            result.append({
+                "timestamp": timestamp_str,
                 **{k: d.get(k) for k in d if k != "_id" and k != "timestamp"}
-            } for d in data
-        ])
+            })
+        
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/latest")
 def get_latest():
-    data = list(collection.find().sort("timestamp", -1).limit(20))
-    return jsonify([
-        {
-            "timestamp": d["timestamp"].strftime("%H:%M:%S"),
-            **{k: d.get(k) for k in d if k != "_id" and k != "timestamp"}
-        } for d in reversed(data)
-    ])
+    try:
+        data = list(collection.find().sort("timestamp", -1).limit(20))
+        result = []
+        
+        for d in reversed(data):
+            # Convert MongoDB datetime to ISO string format
+            timestamp = d["timestamp"]
+            if hasattr(timestamp, 'isoformat'):
+                # If it's a datetime object, convert to ISO format
+                timestamp_str = timestamp.isoformat()
+            else:
+                # If it's already a string, use as is
+                timestamp_str = str(timestamp)
+            
+            result.append({
+                "timestamp": timestamp_str,
+                **{k: d.get(k) for k in d if k != "_id" and k != "timestamp"}
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ✅ NEW: Add endpoint for real-time status
+@app.route("/status")
+def get_status():
+    try:
+        # Get the most recent entry
+        latest_entry = collection.find_one(sort=[("timestamp", -1)])
+        
+        if latest_entry:
+            # Handle MongoDB datetime properly
+            timestamp = latest_entry["timestamp"]
+            if hasattr(timestamp, 'isoformat'):
+                last_update_str = timestamp.isoformat()
+                # Calculate time difference
+                time_diff = (datetime.now() - timestamp).total_seconds()
+            else:
+                last_update_str = str(timestamp)
+                time_diff = 999  # Set high value if can't calculate
+            
+            is_online = time_diff < 30  # Consider online if data is less than 30 seconds old
+            
+            return jsonify({
+                "mpu1_online": is_online,
+                "mpu2_online": is_online,
+                "last_update": last_update_str,
+                "seconds_ago": int(time_diff),
+                "total_records": collection.count_documents({})
+            })
+        else:
+            return jsonify({
+                "mpu1_online": False,
+                "mpu2_online": False,
+                "last_update": None,
+                "seconds_ago": None,
+                "total_records": 0
+            })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/")
 def home():
-    return "Flask API for 2x MPU6050 via MQTT (12 fields only)"
+    return "Flask API for 2x MPU6050 via MQTT (12 fields only) - Fixed Timestamps ✅"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
