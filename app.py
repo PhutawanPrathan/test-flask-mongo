@@ -15,7 +15,11 @@ client = MongoClient(uri)
 db = client["sensor_db"]
 collection = db["sensor_data"]
 
-collection.create_index("timestamp", expireAfterSeconds=100)
+# ✅ REMOVED: Auto-delete TTL index
+# collection.create_index("timestamp", expireAfterSeconds=100)
+
+# ✅ NEW: Create regular index for better query performance (optional)
+collection.create_index("timestamp")
 print("📦 Index info:", list(collection.index_information()))
 
 latest_data = {
@@ -177,7 +181,7 @@ def get_status():
 
 @app.route("/")
 def home():
-    return "Flask API for 2x MPU6050 via MQTT (12 fields only) - Fixed Timestamps ✅"
+    return "Flask API for 2x MPU6050 via MQTT (12 fields only) - Data Persistence Enabled ✅"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
