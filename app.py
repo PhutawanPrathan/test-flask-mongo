@@ -15,7 +15,7 @@ client = MongoClient(uri)
 db = client["sensor_db"]
 collection = db["sensor_data"]
 
-collection.create_index("timestamp", expireAfterSeconds=100)
+# collection.create_index("timestamp", expireAfterSeconds=100)
 print("📦 Index info:", list(collection.index_information()))
 
 latest_data = {
@@ -181,3 +181,4 @@ def home():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
