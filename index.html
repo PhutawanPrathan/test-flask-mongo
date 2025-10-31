@@ -392,6 +392,22 @@
       height: 300px;
     }
 
+    .loading-indicator {
+      text-align: center;
+      padding: 2rem;
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    .error-message {
+      text-align: center;
+      padding: 2rem;
+      color: #e74c3c;
+      background: rgba(231, 76, 60, 0.1);
+      border-radius: 10px;
+      margin: 1rem 0;
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         width: 70px;
@@ -596,6 +612,8 @@
         </div>
         
         <div class="data-table-container">
+          <div id="log-loading" class="loading-indicator">Loading data...</div>
+          <div id="log-error" class="error-message" style="display: none;"></div>
           <div class="table-wrapper">
             <table>
               <thead>
@@ -633,6 +651,9 @@
           <h2>📈 Real-time Sensor Charts</h2>
           <p>Live visualization of sensor data streams</p>
         </div>
+        
+        <div id="graph-loading" class="loading-indicator">Loading charts...</div>
+        <div id="graph-error" class="error-message" style="display: none;"></div>
         
         <div class="charts-grid">
           <div class="chart-container">
@@ -682,14 +703,45 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const apiBase = "https://test-flask-mongo.onrender.com";
-    let allData = [];
-    let currentPage = 1;
-    const rowsPerPage = 10;
-    let maxPages = 1;
+    let currentLogPage = 1;
+    let totalLogPages = 1;
     let charts = {};
+    let isLoadingLog = false;
+    let isLoadingGraph = false;
 
-    function isNewEntry(entry) {
-      return !allData.some(d => d.timestamp === entry.timestamp);
+    // Show loading indicator
+    function showLoading(section) {
+      if (section === 'log') {
+        document.getElementById('log-loading').style.display = 'block';
+        document.getElementById('log-error').style.display = 'none';
+      } else if (section === 'graph') {
+        document.getElementById('graph-loading').style.display = 'block';
+        document.getElementById('graph-error').style.display = 'none';
+      }
+    }
+
+    // Hide loading indicator
+    function hideLoading(section) {
+      if (section === 'log') {
+        document.getElementById('log-loading').style.display = 'none';
+      } else if (section === 'graph') {
+        document.getElementById('graph-loading').style.display = 'none';
+      }
+    }
+
+    // Show error message
+    function showError(section, message) {
+      if (section === 'log') {
+        const errorEl = document.getElementById('log-error');
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        hideLoading('log');
+      } else if (section === 'graph') {
+        const errorEl = document.getElementById('graph-error');
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        hideLoading('graph');
+      }
     }
 
     async function updateDashboardStats() {
@@ -697,11 +749,7 @@
         const statusRes = await fetch(`${apiBase}/status`);
         const status = await statusRes.json();
         
-        if (status.total_records) {
-          document.getElementById('data-count').textContent = status.total_records;
-        } else {
-          document.getElementById('data-count').textContent = allData.length;
-        }
+        document.getElementById('data-count').textContent = status.total_records || 0;
         
         const mpu1Status = document.getElementById('mpu1-status');
         const mpu1Indicator = document.getElementById('mpu1-indicator');
@@ -849,124 +897,112 @@
       });
     }
 
-    async function fetchAndUpdate() {
+    async function loadLogData(page = 1) {
+      if (isLoadingLog) return;
+      
+      isLoadingLog = true;
+      showLoading('log');
+      
       try {
-        const res = await fetch(`${apiBase}/latest`);
-        const latest = await res.json();
-
-        let newEntries = 0;
-        latest.forEach(entry => {
-          if (isNewEntry(entry)) {
-            allData.unshift(entry);
-            newEntries++;
+        console.log(`Fetching log data for page ${page}...`);
+        const response = await fetch(`${apiBase}/data?page=${page}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received log data:', data);
+        
+        hideLoading('log');
+        
+        const tbody = document.getElementById('log-table-body');
+        tbody.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 2rem; color: #999;">No data available on this page.</td></tr>';
+          document.getElementById('page-number').textContent = `Page ${page} of ${page}`;
+          document.getElementById('prev-btn').disabled = page === 1;
+          document.getElementById('next-btn').disabled = true;
+          isLoadingLog = false;
+          return;
+        }
+        
+        data.forEach(d => {
+          const tr = document.createElement('tr');
+          
+          let displayTime = '--:--';
+          try {
+            const date = new Date(d.timestamp);
+            if (!isNaN(date.getTime())) {
+              displayTime = date.toLocaleString();
+            }
+          } catch (e) {
+            console.error('Error parsing timestamp:', d.timestamp);
           }
+          
+          tr.innerHTML = `
+            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
+            <td>${parseFloat(d.mpu1_ax || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_ay || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_az || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_gx || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_gy || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_gz || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_ax || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_ay || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_az || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_gx || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_gy || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_gz || 0).toFixed(2)}</td>
+          `;
+          tbody.appendChild(tr);
         });
-
-        if (allData.length > 500) {
-          allData = allData.slice(0, 500);
-        }
-
-        maxPages = Math.ceil(allData.length / rowsPerPage);
-        updateDashboardStats();
-
-        // Update table if on log page
-        if (document.getElementById('log-page').classList.contains('active')) {
-          renderTable();
-        }
-
-        // Update graphs if on graph page
-        if (document.getElementById('graph-page').classList.contains('active')) {
-          updateGraphs();
-        }
-
-      } catch (err) {
-        console.error("Error fetching latest:", err);
-      }
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById("log-table-body");
-      tbody.innerHTML = "";
-
-      const start = (currentPage - 1) * rowsPerPage;
-      const pageData = allData.slice(start, start + rowsPerPage);
-
-      if (pageData.length === 0) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = '<td colspan="13" style="text-align: center; padding: 2rem; color: #999;">No data available. Waiting for sensor data...</td>';
-        tbody.appendChild(tr);
-        return;
-      }
-
-      pageData.forEach(d => {
-        const tr = document.createElement("tr");
         
-        let displayTime = "--:--";
-        try {
-          const date = new Date(d.timestamp);
-          if (!isNaN(date.getTime())) {
-            displayTime = date.toLocaleString();
-          }
-        } catch (e) {
-          console.error('Error parsing timestamp:', d.timestamp);
-        }
+        // Update pagination
+        document.getElementById('page-number').textContent = `Page ${page}`;
+        document.getElementById('prev-btn').disabled = page === 1;
+        document.getElementById('next-btn').disabled = data.length < 10;
         
-        tr.innerHTML = `
-          <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
-          <td>${parseFloat(d.mpu1_ax).toFixed(2)}</td><td>${parseFloat(d.mpu1_ay).toFixed(2)}</td><td>${parseFloat(d.mpu1_az).toFixed(2)}</td>
-          <td>${parseFloat(d.mpu1_gx).toFixed(2)}</td><td>${parseFloat(d.mpu1_gy).toFixed(2)}</td><td>${parseFloat(d.mpu1_gz).toFixed(2)}</td>
-          <td>${parseFloat(d.mpu2_ax).toFixed(2)}</td><td>${parseFloat(d.mpu2_ay).toFixed(2)}</td><td>${parseFloat(d.mpu2_az).toFixed(2)}</td>
-          <td>${parseFloat(d.mpu2_gx).toFixed(2)}</td><td>${parseFloat(d.mpu2_gy).toFixed(2)}</td><td>${parseFloat(d.mpu2_gz).toFixed(2)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      maxPages = Math.max(1, Math.ceil(allData.length / rowsPerPage));
-      document.getElementById("page-number").textContent = `Page ${currentPage} of ${maxPages}`;
-      document.getElementById("prev-btn").disabled = currentPage === 1;
-      document.getElementById("next-btn").disabled = currentPage === maxPages || allData.length === 0;
+        currentLogPage = page;
+        
+      } catch (error) {
+        console.error('Error loading log data:', error);
+        showError('log', `Failed to load data: ${error.message}. Please check your API connection.`);
+      } finally {
+        isLoadingLog = false;
+      }
     }
 
     function changePage(delta) {
-      const newPage = currentPage + delta;
-      if (newPage >= 1 && newPage <= maxPages) {
-        currentPage = newPage;
-        renderTable();
+      const newPage = currentLogPage + delta;
+      if (newPage >= 1) {
+        loadLogData(newPage);
       }
     }
 
-    function showPage(event, pageId) {
-      event.preventDefault();
+    async function loadGraphData() {
+      if (isLoadingGraph) return;
       
-      document.querySelectorAll('.page-section').forEach(page => {
-        page.classList.remove('active');
-      });
+      isLoadingGraph = true;
+      showLoading('graph');
       
-      document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-      });
-      
-      const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
-      document.getElementById(targetPage).classList.add('active');
-      
-      event.currentTarget.classList.add('active');
-      
-      if (pageId === 'log') {
-        renderTable();
-      } else if (pageId === 'inference') {
-        updateInferenceDisplay();
-      } else if (pageId === 'graph') {
-        updateGraphs();
-      }
-    }
-
-    async function updateGraphs() {
       try {
-        const res = await fetch(`${apiBase}/latest`);
-        const data = await res.json();
-
+        console.log('Fetching graph data...');
+        const response = await fetch(`${apiBase}/latest`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received graph data:', data);
+        
+        hideLoading('graph');
+        
         if (!data || data.length === 0) {
-          console.log('No data available for charts');
+          showError('graph', 'No data available for charts. Waiting for sensor data...');
+          isLoadingGraph = false;
           return;
         }
 
@@ -975,7 +1011,7 @@
           try {
             const date = new Date(d.timestamp);
             if (isNaN(date.getTime())) {
-              return 'Invalid Time';
+              return 'Invalid';
             }
             return date.toLocaleTimeString();
           } catch (e) {
@@ -987,24 +1023,28 @@
           {
             id: "mpu1Accel",
             fields: ["mpu1_ax", "mpu1_ay", "mpu1_az"],
+            labels: ["Ax", "Ay", "Az"],
             colors: ["rgba(255, 99, 132, 0.8)", "rgba(54, 162, 235, 0.8)", "rgba(255, 205, 86, 0.8)"],
             borderColors: ["rgb(255, 99, 132)", "rgb(54, 162, 235)", "rgb(255, 205, 86)"]
           },
           {
             id: "mpu1Gyro",
             fields: ["mpu1_gx", "mpu1_gy", "mpu1_gz"],
+            labels: ["Gx", "Gy", "Gz"],
             colors: ["rgba(75, 192, 192, 0.8)", "rgba(153, 102, 255, 0.8)", "rgba(255, 159, 64, 0.8)"],
             borderColors: ["rgb(75, 192, 192)", "rgb(153, 102, 255)", "rgb(255, 159, 64)"]
           },
           {
             id: "mpu2Accel",
             fields: ["mpu2_ax", "mpu2_ay", "mpu2_az"],
+            labels: ["Ax", "Ay", "Az"],
             colors: ["rgba(255, 99, 132, 0.6)", "rgba(54, 162, 235, 0.6)", "rgba(255, 205, 86, 0.6)"],
             borderColors: ["rgb(255, 99, 132)", "rgb(54, 162, 235)", "rgb(255, 205, 86)"]
           },
           {
             id: "mpu2Gyro",
             fields: ["mpu2_gx", "mpu2_gy", "mpu2_gz"],
+            labels: ["Gx", "Gy", "Gz"],
             colors: ["rgba(75, 192, 192, 0.6)", "rgba(153, 102, 255, 0.6)", "rgba(255, 159, 64, 0.6)"],
             borderColors: ["rgb(75, 192, 192)", "rgb(153, 102, 255)", "rgb(255, 159, 64)"]
           }
@@ -1012,7 +1052,7 @@
 
         chartConfigs.forEach(config => {
           const datasets = config.fields.map((field, i) => ({
-            label: field.toUpperCase(),
+            label: config.labels[i],
             data: chartData.map(d => parseFloat(d[field] || 0)),
             borderColor: config.borderColors[i],
             backgroundColor: config.colors[i],
@@ -1062,27 +1102,60 @@
             charts[config.id].update('none');
           }
         });
-      } catch (err) {
-        console.error("Error updating graphs:", err);
+        
+      } catch (error) {
+        console.error('Error loading graph data:', error);
+        showError('graph', `Failed to load charts: ${error.message}. Please check your API connection.`);
+      } finally {
+        isLoadingGraph = false;
       }
     }
 
-    fetchAndUpdate();
-    updateGraphs();
-    updateDashboardStats();
-    updateInferenceDisplay();
-
-    setInterval(() => {
-      fetchAndUpdate();
+    function showPage(event, pageId) {
+      event.preventDefault();
       
-      if (document.getElementById('graph-page').classList.contains('active')) {
-        updateGraphs();
-      }
+      document.querySelectorAll('.page-section').forEach(page => {
+        page.classList.remove('active');
+      });
       
-      if (document.getElementById('inference-page').classList.contains('active')) {
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      
+      const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
+      document.getElementById(targetPage).classList.add('active');
+      
+      event.currentTarget.classList.add('active');
+      
+      // Load data when switching to specific pages
+      if (pageId === 'log') {
+        loadLogData(currentLogPage);
+      } else if (pageId === 'inference') {
         updateInferenceDisplay();
+      } else if (pageId === 'graph') {
+        loadGraphData();
+      } else if (pageId === 'dashboard') {
+        updateDashboardStats();
       }
-    }, 2000);
+    }
+
+    // Initial load
+    console.log('Initializing dashboard...');
+    updateDashboardStats();
+
+    // Auto-refresh for active pages
+    setInterval(() => {
+      const activePage = document.querySelector('.page-section.active');
+      
+      if (activePage.id === 'dashboard-page') {
+        updateDashboardStats();
+      } else if (activePage.id === 'inference-page') {
+        updateInferenceDisplay();
+      } else if (activePage.id === 'graph-page') {
+        loadGraphData();
+      }
+      // Note: We don't auto-refresh log page to avoid pagination conflicts
+    }, 3000);
   </script>
 </body>
 </html>
