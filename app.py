@@ -15,7 +15,11 @@ client = MongoClient(uri)
 db = client["sensor_db"]
 collection = db["sensor_data"]
 
-# collection.create_index("timestamp", expireAfterSeconds=100)
+# NEW: Collections for inference data
+inference_db = client["robot_sensor_data"]
+inference_collection = inference_db["inference_results"]
+raw_sensor_collection = inference_db["sensor_raw_data"]
+
 print("📦 Index info:", list(collection.index_information()))
 
 latest_data = {
@@ -61,7 +65,6 @@ def on_message(client, userdata, msg):
                 print("✅ Inserted:", combined_data)
                 last_sent_time = current_time
 
-            # รีเซ็ตให้รอข้อมูลรอบใหม่
             latest_data["mpu1"] = None
             latest_data["mpu2"] = None
 
@@ -96,7 +99,6 @@ def get_data():
         result = []
         
         for d in data:
-            # Convert MongoDB datetime to ISO string format
             timestamp = d["timestamp"]
             if hasattr(timestamp, 'isoformat'):
                 timestamp_str = timestamp.isoformat()
@@ -119,13 +121,10 @@ def get_latest():
         result = []
         
         for d in reversed(data):
-            # Convert MongoDB datetime to ISO string format
             timestamp = d["timestamp"]
             if hasattr(timestamp, 'isoformat'):
-                # If it's a datetime object, convert to ISO format
                 timestamp_str = timestamp.isoformat()
             else:
-                # If it's already a string, use as is
                 timestamp_str = str(timestamp)
             
             result.append({
@@ -137,25 +136,21 @@ def get_latest():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ✅ NEW: Add endpoint for real-time status
 @app.route("/status")
 def get_status():
     try:
-        # Get the most recent entry
         latest_entry = collection.find_one(sort=[("timestamp", -1)])
         
         if latest_entry:
-            # Handle MongoDB datetime properly
             timestamp = latest_entry["timestamp"]
             if hasattr(timestamp, 'isoformat'):
                 last_update_str = timestamp.isoformat()
-                # Calculate time difference
                 time_diff = (datetime.now() - timestamp).total_seconds()
             else:
                 last_update_str = str(timestamp)
-                time_diff = 999  # Set high value if can't calculate
+                time_diff = 999
             
-            is_online = time_diff < 30  # Consider online if data is less than 30 seconds old
+            is_online = time_diff < 30
             
             return jsonify({
                 "mpu1_online": is_online,
@@ -175,10 +170,169 @@ def get_status():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ============================================================================
+# NEW INFERENCE ENDPOINTS
+# ============================================================================
+
+@app.route("/inference/latest")
+def get_latest_inference():
+    """Get latest inference results"""
+    try:
+        limit = int(request.args.get("limit", 20))
+        data = list(inference_collection.find().sort("created_at", -1).limit(limit))
+        result = []
+        
+        for d in reversed(data):
+            # Convert MongoDB datetime to ISO string
+            timestamp = d.get("timestamp", "")
+            created_at = d.get("created_at")
+            
+            if hasattr(created_at, 'isoformat'):
+                created_at_str = created_at.isoformat()
+            else:
+                created_at_str = str(created_at) if created_at else ""
+            
+            result.append({
+                "timestamp": timestamp,
+                "created_at": created_at_str,
+                "current_pattern": d.get("current_pattern", {}),
+                "next_pattern": d.get("next_pattern", {}),
+                "inference_time_ms": d.get("inference_time_ms", 0)
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/inference/current")
+def get_current_inference():
+    """Get the most recent inference result"""
+    try:
+        latest = inference_collection.find_one(sort=[("created_at", -1)])
+        
+        if latest:
+            timestamp = latest.get("timestamp", "")
+            created_at = latest.get("created_at")
+            
+            if hasattr(created_at, 'isoformat'):
+                created_at_str = created_at.isoformat()
+            else:
+                created_at_str = str(created_at) if created_at else ""
+            
+            return jsonify({
+                "timestamp": timestamp,
+                "created_at": created_at_str,
+                "current_pattern": latest.get("current_pattern", {}),
+                "next_pattern": latest.get("next_pattern", {}),
+                "inference_time_ms": latest.get("inference_time_ms", 0)
+            })
+        else:
+            return jsonify({
+                "error": "No inference data available"
+            }), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/inference/stats")
+def get_inference_stats():
+    """Get inference statistics"""
+    try:
+        total_inferences = inference_collection.count_documents({})
+        total_raw_samples = raw_sensor_collection.count_documents({})
+        
+        # Get latest inference for status
+        latest = inference_collection.find_one(sort=[("created_at", -1)])
+        
+        if latest:
+            created_at = latest.get("created_at")
+            if hasattr(created_at, 'isoformat'):
+                time_diff = (datetime.now() - created_at).total_seconds()
+                last_inference_time = created_at.isoformat()
+            else:
+                time_diff = 999
+                last_inference_time = str(created_at) if created_at else ""
+            
+            is_active = time_diff < 60  # Consider active if inference within last minute
+        else:
+            is_active = False
+            last_inference_time = None
+            time_diff = None
+        
+        # Calculate average inference time from last 10 inferences
+        recent_inferences = list(inference_collection.find().sort("created_at", -1).limit(10))
+        if recent_inferences:
+            avg_inference_time = sum(d.get("inference_time_ms", 0) for d in recent_inferences) / len(recent_inferences)
+        else:
+            avg_inference_time = 0
+        
+        return jsonify({
+            "total_inferences": total_inferences,
+            "total_raw_samples": total_raw_samples,
+            "is_active": is_active,
+            "last_inference_time": last_inference_time,
+            "seconds_since_last": int(time_diff) if time_diff else None,
+            "average_inference_time_ms": round(avg_inference_time, 2)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/inference/history")
+def get_inference_history():
+    """Get paginated inference history"""
+    try:
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 20))
+        skip = (page - 1) * per_page
+        
+        data = list(inference_collection.find().sort("created_at", -1).skip(skip).limit(per_page))
+        total_count = inference_collection.count_documents({})
+        
+        result = []
+        for d in data:
+            timestamp = d.get("timestamp", "")
+            created_at = d.get("created_at")
+            
+            if hasattr(created_at, 'isoformat'):
+                created_at_str = created_at.isoformat()
+            else:
+                created_at_str = str(created_at) if created_at else ""
+            
+            result.append({
+                "timestamp": timestamp,
+                "created_at": created_at_str,
+                "current_pattern": d.get("current_pattern", {}),
+                "next_pattern": d.get("next_pattern", {}),
+                "inference_time_ms": d.get("inference_time_ms", 0)
+            })
+        
+        return jsonify({
+            "data": result,
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": (total_count + per_page - 1) // per_page
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/")
 def home():
-    return "Flask API for 2x MPU6050 via MQTT (12 fields only) - Fixed Timestamps ✅"
+    return """
+    <h1>🤖 Robot Sensor API with Inference</h1>
+    <h2>Sensor Endpoints:</h2>
+    <ul>
+        <li>GET /data - Paginated sensor data</li>
+        <li>GET /latest - Latest 20 sensor readings</li>
+        <li>GET /status - Sensor status and statistics</li>
+    </ul>
+    <h2>Inference Endpoints:</h2>
+    <ul>
+        <li>GET /inference/latest?limit=20 - Latest inference results</li>
+        <li>GET /inference/current - Most recent inference</li>
+        <li>GET /inference/stats - Inference statistics</li>
+        <li>GET /inference/history?page=1&per_page=20 - Paginated history</li>
+    </ul>
+    """
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
