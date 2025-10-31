@@ -338,7 +338,7 @@
       transition: all 0.3s ease;
     }
 
-    .pagination button:hover {
+    .pagination button:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
     }
@@ -390,6 +390,20 @@
     .chart-wrapper {
       position: relative;
       height: 300px;
+    }
+
+    .loading-message {
+      text-align: center;
+      padding: 2rem;
+      color: #667eea;
+      font-size: 1.2rem;
+    }
+
+    .error-message {
+      text-align: center;
+      padding: 2rem;
+      color: #e74c3c;
+      font-size: 1.2rem;
     }
 
     @media (max-width: 768px) {
@@ -465,7 +479,7 @@
               <div class="card-icon">🎯</div>
               <div class="card-title">MPU1 Status</div>
             </div>
-            <div class="card-value" id="mpu1-status">Online</div>
+            <div class="card-value" id="mpu1-status">Checking...</div>
             <div class="card-status status-online" id="mpu1-indicator">Active</div>
           </div>
           
@@ -474,7 +488,7 @@
               <div class="card-icon">🎯</div>
               <div class="card-title">MPU2 Status</div>
             </div>
-            <div class="card-value" id="mpu2-status">Online</div>
+            <div class="card-value" id="mpu2-status">Checking...</div>
             <div class="card-status status-online" id="mpu2-indicator">Active</div>
           </div>
           
@@ -510,7 +524,7 @@
               <div class="card-icon">🤖</div>
               <div class="card-title">Inference Status</div>
             </div>
-            <div class="card-value" id="inference-status">Active</div>
+            <div class="card-value" id="inference-status">Checking...</div>
             <div class="card-status status-online" id="inference-indicator">Running</div>
           </div>
           
@@ -596,34 +610,38 @@
         </div>
         
         <div class="data-table-container">
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>🕒 Timestamp</th>
-                  <th colspan="3">MPU1 Accelerometer</th>
-                  <th colspan="3">MPU1 Gyroscope</th>
-                  <th colspan="3">MPU2 Accelerometer</th>
-                  <th colspan="3">MPU2 Gyroscope</th>
-                </tr>
-                <tr style="background: rgba(102, 126, 234, 0.8);">
-                  <th>Time</th>
-                  <th>Ax</th><th>Ay</th><th>Az</th>
-                  <th>Gx</th><th>Gy</th><th>Gz</th>
-                  <th>Ax</th><th>Ay</th><th>Az</th>
-                  <th>Gx</th><th>Gy</th><th>Gz</th>
-                </tr>
-              </thead>
-              <tbody id="log-table-body"></tbody>
-            </table>
-          </div>
-          
-          <div class="pagination">
-            <button onclick="changePage(-1)" id="prev-btn">← Previous</button>
-            <div class="page-info">
-              <span id="page-number">Page 1 of 1</span>
+          <div id="log-loading" class="loading-message">Loading data...</div>
+          <div id="log-error" class="error-message" style="display: none;"></div>
+          <div id="log-content" style="display: none;">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>🕒 Timestamp</th>
+                    <th colspan="3">MPU1 Accelerometer</th>
+                    <th colspan="3">MPU1 Gyroscope</th>
+                    <th colspan="3">MPU2 Accelerometer</th>
+                    <th colspan="3">MPU2 Gyroscope</th>
+                  </tr>
+                  <tr style="background: rgba(102, 126, 234, 0.8);">
+                    <th>Time</th>
+                    <th>Ax</th><th>Ay</th><th>Az</th>
+                    <th>Gx</th><th>Gy</th><th>Gz</th>
+                    <th>Ax</th><th>Ay</th><th>Az</th>
+                    <th>Gx</th><th>Gy</th><th>Gz</th>
+                  </tr>
+                </thead>
+                <tbody id="log-table-body"></tbody>
+              </table>
             </div>
-            <button onclick="changePage(1)" id="next-btn">Next →</button>
+            
+            <div class="pagination">
+              <button onclick="changePage(-1)" id="prev-btn">← Previous</button>
+              <div class="page-info">
+                <span id="page-number">Page 1</span>
+              </div>
+              <button onclick="changePage(1)" id="next-btn">Next →</button>
+            </div>
           </div>
         </div>
       </section>
@@ -634,7 +652,9 @@
           <p>Live visualization of sensor data streams</p>
         </div>
         
-        <div class="charts-grid">
+        <div id="graph-loading" class="loading-message">Loading charts...</div>
+        <div id="graph-error" class="error-message" style="display: none;"></div>
+        <div id="graph-content" class="charts-grid" style="display: none;">
           <div class="chart-container">
             <div class="chart-header">
               <div class="card-icon">🎯</div>
@@ -681,27 +701,35 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    // CHANGE THIS TO YOUR ACTUAL API URL
     const apiBase = "https://test-flask-mongo.onrender.com";
-    let allData = [];
+    
     let currentPage = 1;
     const rowsPerPage = 10;
-    let maxPages = 1;
     let charts = {};
+    let chartUpdateInterval = null;
 
-    function isNewEntry(entry) {
-      return !allData.some(d => d.timestamp === entry.timestamp);
+    function formatTimestamp(timestamp) {
+      try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) {
+          return 'Invalid Time';
+        }
+        return date.toLocaleString();
+      } catch (e) {
+        console.error('Error formatting timestamp:', timestamp, e);
+        return 'Error';
+      }
     }
 
     async function updateDashboardStats() {
       try {
         const statusRes = await fetch(`${apiBase}/status`);
+        if (!statusRes.ok) throw new Error('Status fetch failed');
+        
         const status = await statusRes.json();
         
-        if (status.total_records) {
-          document.getElementById('data-count').textContent = status.total_records;
-        } else {
-          document.getElementById('data-count').textContent = allData.length;
-        }
+        document.getElementById('data-count').textContent = status.total_records || 0;
         
         const mpu1Status = document.getElementById('mpu1-status');
         const mpu1Indicator = document.getElementById('mpu1-indicator');
@@ -729,12 +757,8 @@
         }
         
         if (status.last_update) {
-          try {
-            const lastTime = new Date(status.last_update).toLocaleTimeString();
-            document.getElementById('last-update').textContent = lastTime;
-          } catch (e) {
-            document.getElementById('last-update').textContent = 'Error';
-          }
+          const lastTime = formatTimestamp(status.last_update);
+          document.getElementById('last-update').textContent = lastTime.split(' ')[1] || lastTime;
         }
         
       } catch (error) {
@@ -745,6 +769,8 @@
     async function updateInferenceDisplay() {
       try {
         const statsRes = await fetch(`${apiBase}/inference/stats`);
+        if (!statsRes.ok) throw new Error('Stats fetch failed');
+        
         const stats = await statsRes.json();
         
         document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
@@ -765,12 +791,8 @@
         }
         
         if (stats.last_inference_time) {
-          try {
-            const lastTime = new Date(stats.last_inference_time).toLocaleTimeString();
-            document.getElementById('last-inference-time').textContent = lastTime;
-          } catch (e) {
-            document.getElementById('last-inference-time').textContent = 'Error';
-          }
+          const lastTime = formatTimestamp(stats.last_inference_time);
+          document.getElementById('last-inference-time').textContent = lastTime.split(' ')[1] || lastTime;
         }
         
         const currentRes = await fetch(`${apiBase}/inference/current`);
@@ -792,33 +814,27 @@
         }
         
         const historyRes = await fetch(`${apiBase}/inference/latest?limit=10`);
-        const history = await historyRes.json();
-        
-        const tbody = document.getElementById('inference-table-body');
-        tbody.innerHTML = '';
-        
-        history.forEach(item => {
-          const tr = document.createElement('tr');
-          let displayTime = '--:--';
-          try {
-            const date = new Date(item.created_at);
-            if (!isNaN(date.getTime())) {
-              displayTime = date.toLocaleString();
-            }
-          } catch (e) {
-            console.error('Error parsing timestamp:', item.created_at);
-          }
+        if (historyRes.ok) {
+          const history = await historyRes.json();
           
-          tr.innerHTML = `
-            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
-            <td>${item.current_pattern.prediction}</td>
-            <td>${item.current_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.next_pattern.prediction}</td>
-            <td>${item.next_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.inference_time_ms.toFixed(2)} ms</td>
-          `;
-          tbody.appendChild(tr);
-        });
+          const tbody = document.getElementById('inference-table-body');
+          tbody.innerHTML = '';
+          
+          history.forEach(item => {
+            const tr = document.createElement('tr');
+            const displayTime = formatTimestamp(item.created_at);
+            
+            tr.innerHTML = `
+              <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
+              <td>${item.current_pattern.prediction}</td>
+              <td>${item.current_pattern.confidence.toFixed(1)}%</td>
+              <td>${item.next_pattern.prediction}</td>
+              <td>${item.next_pattern.confidence.toFixed(1)}%</td>
+              <td>${item.inference_time_ms.toFixed(2)} ms</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
         
       } catch (error) {
         console.error('Error updating inference display:', error);
@@ -849,143 +865,119 @@
       });
     }
 
-    async function fetchAndUpdate() {
+    async function loadDataLog() {
       try {
-        const res = await fetch(`${apiBase}/latest`);
-        const latest = await res.json();
+        document.getElementById('log-loading').style.display = 'block';
+        document.getElementById('log-error').style.display = 'none';
+        document.getElementById('log-content').style.display = 'none';
+        
+        const res = await fetch(`${apiBase}/data?page=${currentPage}`);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const data = await res.json();
+        
+        if (!data || data.length === 0) {
+          throw new Error('No data available');
+        }
+        
+        document.getElementById('log-loading').style.display = 'none';
+        document.getElementById('log-content').style.display = 'block';
+        
+        const tbody = document.getElementById("log-table-body");
+        tbody.innerHTML = "";
 
-        let newEntries = 0;
-        latest.forEach(entry => {
-          if (isNewEntry(entry)) {
-            allData.unshift(entry);
-            newEntries++;
-          }
+        data.forEach(d => {
+          const tr = document.createElement("tr");
+          const displayTime = formatTimestamp(d.timestamp);
+          
+          tr.innerHTML = `
+            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
+            <td>${parseFloat(d.mpu1_ax || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_ay || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_az || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_gx || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_gy || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu1_gz || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_ax || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_ay || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_az || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_gx || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_gy || 0).toFixed(2)}</td>
+            <td>${parseFloat(d.mpu2_gz || 0).toFixed(2)}</td>
+          `;
+          tbody.appendChild(tr);
         });
 
-        if (allData.length > 500) {
-          allData = allData.slice(0, 500);
-        }
-
-        maxPages = Math.ceil(allData.length / rowsPerPage);
-        updateDashboardStats();
-
-        if (currentPage === 1 && document.getElementById('log-page').classList.contains('active')) {
-          renderTable();
-        }
-
-      } catch (err) {
-        console.error("Error fetching latest:", err);
+        document.getElementById("page-number").textContent = `Page ${currentPage}`;
+        document.getElementById("prev-btn").disabled = currentPage === 1;
+        document.getElementById("next-btn").disabled = data.length < rowsPerPage;
+        
+      } catch (error) {
+        console.error("Error loading data log:", error);
+        document.getElementById('log-loading').style.display = 'none';
+        document.getElementById('log-error').textContent = 'Error loading data: ' + error.message;
+        document.getElementById('log-error').style.display = 'block';
       }
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById("log-table-body");
-      tbody.innerHTML = "";
-
-      const start = (currentPage - 1) * rowsPerPage;
-      const pageData = allData.slice(start, start + rowsPerPage);
-
-      pageData.forEach(d => {
-        const tr = document.createElement("tr");
-        
-        let displayTime = "--:--";
-        try {
-          const date = new Date(d.timestamp);
-          if (!isNaN(date.getTime())) {
-            displayTime = date.toLocaleString();
-          }
-        } catch (e) {
-          console.error('Error parsing timestamp:', d.timestamp);
-        }
-        
-        tr.innerHTML = `
-          <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
-          <td>${parseFloat(d.mpu1_ax).toFixed(2)}</td><td>${parseFloat(d.mpu1_ay).toFixed(2)}</td><td>${parseFloat(d.mpu1_az).toFixed(2)}</td>
-          <td>${parseFloat(d.mpu1_gx).toFixed(2)}</td><td>${parseFloat(d.mpu1_gy).toFixed(2)}</td><td>${parseFloat(d.mpu1_gz).toFixed(2)}</td>
-          <td>${parseFloat(d.mpu2_ax).toFixed(2)}</td><td>${parseFloat(d.mpu2_ay).toFixed(2)}</td><td>${parseFloat(d.mpu2_az).toFixed(2)}</td>
-          <td>${parseFloat(d.mpu2_gx).toFixed(2)}</td><td>${parseFloat(d.mpu2_gy).toFixed(2)}</td><td>${parseFloat(d.mpu2_gz).toFixed(2)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById("page-number").textContent = `Page ${currentPage} of ${maxPages}`;
-      document.getElementById("prev-btn").disabled = currentPage === 1;
-      document.getElementById("next-btn").disabled = currentPage === maxPages;
     }
 
     function changePage(delta) {
       const newPage = currentPage + delta;
-      if (newPage >= 1 && newPage <= maxPages) {
+      if (newPage >= 1) {
         currentPage = newPage;
-        renderTable();
-      }
-    }
-
-    function showPage(event, pageId) {
-      event.preventDefault();
-      
-      document.querySelectorAll('.page-section').forEach(page => {
-        page.classList.remove('active');
-      });
-      
-      document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-      });
-      
-      const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
-      document.getElementById(targetPage).classList.add('active');
-      
-      event.currentTarget.classList.add('active');
-      
-      if (pageId === 'log') {
-        renderTable();
-      } else if (pageId === 'inference') {
-        updateInferenceDisplay();
-      } else if (pageId === 'graph') {
-        updateGraphs();
+        loadDataLog();
       }
     }
 
     async function updateGraphs() {
       try {
+        document.getElementById('graph-loading').style.display = 'block';
+        document.getElementById('graph-error').style.display = 'none';
+        document.getElementById('graph-content').style.display = 'none';
+        
         const res = await fetch(`${apiBase}/latest`);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
         const data = await res.json();
+        
+        if (!data || data.length === 0) {
+          throw new Error('No data available for charts');
+        }
+
+        document.getElementById('graph-loading').style.display = 'none';
+        document.getElementById('graph-content').style.display = 'grid';
 
         const chartData = data.slice(0, 50).reverse();
         const labels = chartData.map(d => {
-          try {
-            const date = new Date(d.timestamp);
-            if (isNaN(date.getTime())) {
-              return 'Invalid Time';
-            }
-            return date.toLocaleTimeString();
-          } catch (e) {
-            return 'Error';
-          }
+          const date = new Date(d.timestamp);
+          return isNaN(date.getTime()) ? 'Invalid' : date.toLocaleTimeString();
         });
 
         const chartConfigs = [
           {
             id: "mpu1Accel",
             fields: ["mpu1_ax", "mpu1_ay", "mpu1_az"],
+            labels: ["Ax", "Ay", "Az"],
             colors: ["rgba(255, 99, 132, 0.8)", "rgba(54, 162, 235, 0.8)", "rgba(255, 205, 86, 0.8)"],
             borderColors: ["rgb(255, 99, 132)", "rgb(54, 162, 235)", "rgb(255, 205, 86)"]
           },
           {
             id: "mpu1Gyro",
             fields: ["mpu1_gx", "mpu1_gy", "mpu1_gz"],
+            labels: ["Gx", "Gy", "Gz"],
             colors: ["rgba(75, 192, 192, 0.8)", "rgba(153, 102, 255, 0.8)", "rgba(255, 159, 64, 0.8)"],
             borderColors: ["rgb(75, 192, 192)", "rgb(153, 102, 255)", "rgb(255, 159, 64)"]
           },
           {
             id: "mpu2Accel",
             fields: ["mpu2_ax", "mpu2_ay", "mpu2_az"],
+            labels: ["Ax", "Ay", "Az"],
             colors: ["rgba(255, 99, 132, 0.6)", "rgba(54, 162, 235, 0.6)", "rgba(255, 205, 86, 0.6)"],
             borderColors: ["rgb(255, 99, 132)", "rgb(54, 162, 235)", "rgb(255, 205, 86)"]
           },
           {
             id: "mpu2Gyro",
             fields: ["mpu2_gx", "mpu2_gy", "mpu2_gz"],
+            labels: ["Gx", "Gy", "Gz"],
             colors: ["rgba(75, 192, 192, 0.6)", "rgba(153, 102, 255, 0.6)", "rgba(255, 159, 64, 0.6)"],
             borderColors: ["rgb(75, 192, 192)", "rgb(153, 102, 255)", "rgb(255, 159, 64)"]
           }
@@ -993,8 +985,8 @@
 
         chartConfigs.forEach(config => {
           const datasets = config.fields.map((field, i) => ({
-            label: field.toUpperCase(),
-            data: chartData.map(d => parseFloat(d[field])),
+            label: config.labels[i],
+            data: chartData.map(d => parseFloat(d[field] || 0)),
             borderColor: config.borderColors[i],
             backgroundColor: config.colors[i],
             borderWidth: 2,
@@ -1038,26 +1030,62 @@
           } else {
             charts[config.id].data.labels = labels;
             charts[config.id].data.datasets.forEach((ds, i) => {
-              ds.data = chartData.map(d => parseFloat(d[config.fields[i]]));
+              ds.data = chartData.map(d => parseFloat(d[config.fields[i]] || 0));
             });
             charts[config.id].update('none');
           }
         });
-      } catch (err) {
-        console.error("Error updating graphs:", err);
+      } catch (error) {
+        console.error("Error updating graphs:", error);
+        document.getElementById('graph-loading').style.display = 'none';
+        document.getElementById('graph-error').textContent = 'Error loading charts: ' + error.message;
+        document.getElementById('graph-error').style.display = 'block';
       }
     }
 
-    fetchAndUpdate();
-    updateGraphs();
-    updateDashboardStats();
-    updateInferenceDisplay();
-
-    setInterval(() => {
-      fetchAndUpdate();
+    function showPage(event, pageId) {
+      document.querySelectorAll('.page-section').forEach(page => {
+        page.classList.remove('active');
+      });
       
-      if (document.getElementById('graph-page').classList.contains('active')) {
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      
+      const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
+      document.getElementById(targetPage).classList.add('active');
+      
+      event.currentTarget.classList.add('active');
+      
+      if (pageId === 'log') {
+        loadDataLog();
+      } else if (pageId === 'inference') {
+        updateInferenceDisplay();
+      } else if (pageId === 'graph') {
         updateGraphs();
+        if (chartUpdateInterval) {
+          clearInterval(chartUpdateInterval);
+        }
+        chartUpdateInterval = setInterval(() => {
+          if (document.getElementById('graph-page').classList.contains('active')) {
+            updateGraphs();
+          }
+        }, 3000);
+      } else {
+        if (chartUpdateInterval) {
+          clearInterval(chartUpdateInterval);
+          chartUpdateInterval = null;
+        }
+      }
+    }
+
+    // Initialize dashboard
+    updateDashboardStats();
+
+    // Update dashboard stats every 2 seconds
+    setInterval(() => {
+      if (document.getElementById('dashboard-page').classList.contains('active')) {
+        updateDashboardStats();
       }
       
       if (document.getElementById('inference-page').classList.contains('active')) {
