@@ -199,6 +199,154 @@
       color: #e74c3c;
     }
 
+    /* Vibration Alert Modal */
+    .alert-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9999;
+      backdrop-filter: blur(5px);
+      animation: fadeInOverlay 0.3s ease;
+    }
+
+    .alert-overlay.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes fadeInOverlay {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .alert-modal {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      position: relative;
+      animation: popIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      max-width: 90vw;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .alert-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: pulse 1s infinite;
+    }
+
+    .alert-title {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .alert-message {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+      color: #666;
+    }
+
+    .alert-level {
+      display: inline-block;
+      padding: 0.5rem 1.5rem;
+      border-radius: 30px;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+    }
+
+    .alert-close {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .alert-close:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Alert Size Classes */
+    .alert-level-0 .alert-modal { width: 300px; }
+    .alert-level-1 .alert-modal { width: 350px; }
+    .alert-level-2 .alert-modal { width: 400px; }
+    .alert-level-3 .alert-modal { width: 450px; }
+    .alert-level-4 .alert-modal { width: 500px; }
+    .alert-level-5 .alert-modal { width: 550px; }
+
+    /* Alert Color Classes */
+    .alert-color-0 { background: rgba(149, 165, 166, 0.2); color: #7f8c8d; }
+    .alert-color-1 { background: rgba(52, 152, 219, 0.2); color: #2980b9; }
+    .alert-color-2 { background: rgba(241, 196, 15, 0.2); color: #f39c12; }
+    .alert-color-3 { background: rgba(230, 126, 34, 0.2); color: #d35400; }
+    .alert-color-4 { background: rgba(231, 76, 60, 0.2); color: #c0392b; }
+    .alert-color-5 { background: rgba(192, 57, 43, 0.2); color: #e74c3c; }
+
+    .alert-border-0 { border: 3px solid #95a5a6; }
+    .alert-border-1 { border: 3px solid #3498db; }
+    .alert-border-2 { border: 3px solid #f1c40f; }
+    .alert-border-3 { border: 3px solid #e67e22; }
+    .alert-border-4 { border: 3px solid #e74c3c; }
+    .alert-border-5 { border: 3px solid #c0392b; }
+
+    /* Vibration Level Indicator */
+    .vibration-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      z-index: 9998;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .vibration-indicator.active {
+      display: block;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(400px); }
+      to { transform: translateX(0); }
+    }
+
+    .vib-level {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+
+    .vib-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
     .inference-container {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
@@ -679,6 +827,23 @@
     </main>
   </div>
 
+  <!-- Vibration Alert Modal -->
+  <div id="alert-overlay" class="alert-overlay">
+    <div class="alert-modal">
+      <div class="alert-icon" id="alert-icon">⚠️</div>
+      <div class="alert-title" id="alert-title">Vibration Alert</div>
+      <div class="alert-level" id="alert-level-badge">Level 0</div>
+      <div class="alert-message" id="alert-message">Vibration detected</div>
+      <button class="alert-close" onclick="closeAlert()">Acknowledge</button>
+    </div>
+  </div>
+
+  <!-- Vibration Level Indicator -->
+  <div id="vibration-indicator" class="vibration-indicator">
+    <div class="vib-level">Current Vibration</div>
+    <div class="vib-value" id="vib-display">Idle</div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const apiBase = "https://test-flask-mongo.onrender.com";
@@ -687,6 +852,113 @@
     const rowsPerPage = 10;
     let maxPages = 1;
     let charts = {};
+    let lastVibrationLevel = -1;
+    let alertShown = false;
+
+    const vibrationLevels = {
+      0: { name: 'Idle', icon: '😴', message: 'System is idle - no significant vibration detected', color: 'gray' },
+      1: { name: 'Creep', icon: '🟢', message: 'Minor creep movement detected - monitoring situation', color: 'blue' },
+      2: { name: 'Micro Tremor', icon: '🟡', message: 'Micro tremors detected - increased monitoring recommended', color: 'yellow' },
+      3: { name: 'Sudden Slip', icon: '🟠', message: 'Sudden slip detected - attention required!', color: 'orange' },
+      4: { name: 'Debris Flow', icon: '🔴', message: 'DEBRIS FLOW DETECTED - IMMEDIATE ACTION REQUIRED!', color: 'red' },
+      5: { name: 'Intermittent', icon: '🔴', message: 'CRITICAL: Intermittent activity - EVACUATE IF NECESSARY!', color: 'darkred' }
+    };
+
+    function showVibrationAlert(level) {
+      const info = vibrationLevels[level];
+      const overlay = document.getElementById('alert-overlay');
+      const modal = overlay.querySelector('.alert-modal');
+      
+      // Update overlay class for sizing
+      overlay.className = `alert-overlay active alert-level-${level}`;
+      
+      // Update modal content
+      document.getElementById('alert-icon').textContent = info.icon;
+      document.getElementById('alert-title').textContent = `⚠️ ${info.name} Alert!`;
+      document.getElementById('alert-level-badge').textContent = `Level ${level}: ${info.name}`;
+      document.getElementById('alert-level-badge').className = `alert-level alert-color-${level}`;
+      document.getElementById('alert-message').textContent = info.message;
+      
+      // Update modal border
+      modal.className = `alert-modal alert-border-${level}`;
+      
+      // Play alert sound (optional - browser dependent)
+      if (level >= 3) {
+        playAlertSound();
+      }
+      
+      alertShown = true;
+    }
+
+    function closeAlert() {
+      document.getElementById('alert-overlay').classList.remove('active');
+      alertShown = false;
+    }
+
+    function updateVibrationIndicator(level) {
+      const indicator = document.getElementById('vibration-indicator');
+      const display = document.getElementById('vib-display');
+      const info = vibrationLevels[level];
+      
+      display.textContent = `${info.icon} ${info.name}`;
+      display.className = `vib-value alert-color-${level}`;
+      
+      if (level > 0) {
+        indicator.classList.add('active');
+      } else {
+        indicator.classList.remove('active');
+      }
+    }
+
+    function playAlertSound() {
+      // Create a simple beep sound
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (e) {
+        console.log('Audio not supported');
+      }
+    }
+
+    function checkVibrationLevel(currentPattern) {
+      // Map pattern prediction to vibration level
+      let level = 0;
+      
+      if (typeof currentPattern === 'string') {
+        const pattern = currentPattern.toLowerCase();
+        if (pattern.includes('idle') || pattern === '0') level = 0;
+        else if (pattern.includes('creep') || pattern === '1') level = 1;
+        else if (pattern.includes('micro') || pattern.includes('tremor') || pattern === '2') level = 2;
+        else if (pattern.includes('sudden') || pattern.includes('slip') || pattern === '3') level = 3;
+        else if (pattern.includes('debris') || pattern.includes('flow') || pattern === '4') level = 4;
+        else if (pattern.includes('intermittent') || pattern === '5') level = 5;
+      } else if (typeof currentPattern === 'number') {
+        level = currentPattern;
+      }
+      
+      // Update indicator
+      updateVibrationIndicator(level);
+      
+      // Show alert if level increased and >= 2
+      if (level !== lastVibrationLevel && level >= 2 && !alertShown) {
+        showVibrationAlert(level);
+      }
+      
+      lastVibrationLevel = level;
+    }
 
     function isNewEntry(entry) {
       return !allData.some(d => d.timestamp === entry.timestamp);
@@ -789,6 +1061,9 @@
           
           displayProbabilities('current-probabilities', current.current_pattern.probabilities);
           displayProbabilities('next-probabilities', current.next_pattern.probabilities);
+          
+          // Check vibration level based on current pattern
+          checkVibrationLevel(current.current_pattern.prediction);
         }
         
         const historyRes = await fetch(`${apiBase}/inference/latest?limit=10`);
@@ -869,8 +1144,14 @@
         maxPages = Math.ceil(allData.length / rowsPerPage);
         updateDashboardStats();
 
-        if (currentPage === 1 && document.getElementById('log-page').classList.contains('active')) {
+        // Update table if on log page
+        if (document.getElementById('log-page').classList.contains('active')) {
           renderTable();
+        }
+
+        // Update graphs if on graph page
+        if (document.getElementById('graph-page').classList.contains('active')) {
+          updateGraphs();
         }
 
       } catch (err) {
@@ -884,6 +1165,13 @@
 
       const start = (currentPage - 1) * rowsPerPage;
       const pageData = allData.slice(start, start + rowsPerPage);
+
+      if (pageData.length === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = '<td colspan="13" style="text-align: center; padding: 2rem; color: #999;">No data available. Waiting for sensor data...</td>';
+        tbody.appendChild(tr);
+        return;
+      }
 
       pageData.forEach(d => {
         const tr = document.createElement("tr");
@@ -908,9 +1196,10 @@
         tbody.appendChild(tr);
       });
 
+      maxPages = Math.max(1, Math.ceil(allData.length / rowsPerPage));
       document.getElementById("page-number").textContent = `Page ${currentPage} of ${maxPages}`;
       document.getElementById("prev-btn").disabled = currentPage === 1;
-      document.getElementById("next-btn").disabled = currentPage === maxPages;
+      document.getElementById("next-btn").disabled = currentPage === maxPages || allData.length === 0;
     }
 
     function changePage(delta) {
@@ -922,6 +1211,8 @@
     }
 
     function showPage(event, pageId) {
+      event.preventDefault();
+      
       document.querySelectorAll('.page-section').forEach(page => {
         page.classList.remove('active');
       });
@@ -939,6 +1230,8 @@
         renderTable();
       } else if (pageId === 'inference') {
         updateInferenceDisplay();
+      } else if (pageId === 'graph') {
+        updateGraphs();
       }
     }
 
@@ -946,6 +1239,11 @@
       try {
         const res = await fetch(`${apiBase}/latest`);
         const data = await res.json();
+
+        if (!data || data.length === 0) {
+          console.log('No data available for charts');
+          return;
+        }
 
         const chartData = data.slice(0, 50).reverse();
         const labels = chartData.map(d => {
@@ -990,7 +1288,7 @@
         chartConfigs.forEach(config => {
           const datasets = config.fields.map((field, i) => ({
             label: field.toUpperCase(),
-            data: chartData.map(d => parseFloat(d[field])),
+            data: chartData.map(d => parseFloat(d[field] || 0)),
             borderColor: config.borderColors[i],
             backgroundColor: config.colors[i],
             borderWidth: 2,
@@ -1034,7 +1332,7 @@
           } else {
             charts[config.id].data.labels = labels;
             charts[config.id].data.datasets.forEach((ds, i) => {
-              ds.data = chartData.map(d => parseFloat(d[config.fields[i]]));
+              ds.data = chartData.map(d => parseFloat(d[config.fields[i]] || 0));
             });
             charts[config.id].update('none');
           }
@@ -1059,7 +1357,24 @@
       if (document.getElementById('inference-page').classList.contains('active')) {
         updateInferenceDisplay();
       }
+      
+      // Always update inference in background to check vibration levels
+      updateInferenceDisplay();
     }, 2000);
+
+    // Close alert when clicking outside
+    document.getElementById('alert-overlay').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeAlert();
+      }
+    });
+
+    // Keyboard shortcut to close alert
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeAlert();
+      }
+    });
   </script>
 </body>
 </html>
