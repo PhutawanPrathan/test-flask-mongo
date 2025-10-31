@@ -922,6 +922,8 @@
     }
 
     function showPage(event, pageId) {
+      event.preventDefault();
+      
       document.querySelectorAll('.page-section').forEach(page => {
         page.classList.remove('active');
       });
@@ -939,6 +941,8 @@
         renderTable();
       } else if (pageId === 'inference') {
         updateInferenceDisplay();
+      } else if (pageId === 'graph') {
+        updateGraphs();
       }
     }
 
