@@ -19,7 +19,6 @@
       min-height: 100vh;
     }
 
-    /* Sidebar Navigation */
     .sidebar {
       width: 280px;
       background: rgba(255, 255, 255, 0.1);
@@ -66,6 +65,7 @@
       text-decoration: none;
       transition: all 0.3s ease;
       position: relative;
+      cursor: pointer;
     }
 
     .nav-link:hover, .nav-link.active {
@@ -78,7 +78,6 @@
       font-size: 1.2rem;
     }
 
-    /* Main Content */
     .main-content {
       flex: 1;
       padding: 2rem;
@@ -99,7 +98,6 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Header */
     .page-header {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
@@ -118,7 +116,6 @@
       margin-bottom: 0.5rem;
     }
 
-    /* Status Cards */
     .status-cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -202,7 +199,6 @@
       color: #e74c3c;
     }
 
-    /* Inference Display */
     .inference-container {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
@@ -284,7 +280,6 @@
       transition: width 0.3s ease;
     }
 
-    /* Data Table */
     .data-table-container {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
@@ -324,7 +319,6 @@
       background: rgba(102, 126, 234, 0.05);
     }
 
-    /* Pagination */
     .pagination {
       display: flex;
       justify-content: center;
@@ -363,7 +357,6 @@
       font-weight: 500;
     }
 
-    /* Charts Container */
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
@@ -399,29 +392,6 @@
       height: 300px;
     }
 
-    /* Loading Animation */
-    .loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 200px;
-    }
-
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid rgba(102, 126, 234, 0.3);
-      border-top: 4px solid #667eea;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    /* Responsive Design */
     @media (max-width: 768px) {
       .sidebar {
         width: 70px;
@@ -447,7 +417,6 @@
 </head>
 <body>
   <div class="dashboard-container">
-    <!-- Sidebar Navigation -->
     <nav class="sidebar">
       <div class="logo">
         <h1>🤖 RobotHub</h1>
@@ -455,37 +424,35 @@
       </div>
       
       <div class="nav-item">
-        <a href="#" class="nav-link active" onclick="showPage('dashboard')">
+        <div class="nav-link active" onclick="showPage(event, 'dashboard')">
           <span class="nav-icon">📊</span>
           <span class="nav-text">Dashboard</span>
-        </a>
+        </div>
       </div>
       
       <div class="nav-item">
-        <a href="#" class="nav-link" onclick="showPage('inference')">
+        <div class="nav-link" onclick="showPage(event, 'inference')">
           <span class="nav-icon">🤖</span>
           <span class="nav-text">AI Inference</span>
-        </a>
+        </div>
       </div>
       
       <div class="nav-item">
-        <a href="#" class="nav-link" onclick="showPage('log')">
+        <div class="nav-link" onclick="showPage(event, 'log')">
           <span class="nav-icon">📋</span>
           <span class="nav-text">Data Log</span>
-        </a>
+        </div>
       </div>
       
       <div class="nav-item">
-        <a href="#" class="nav-link" onclick="showPage('graph')">
+        <div class="nav-link" onclick="showPage(event, 'graph')">
           <span class="nav-icon">📈</span>
           <span class="nav-text">Live Charts</span>
-        </a>
+        </div>
       </div>
     </nav>
 
-    <!-- Main Content -->
     <main class="main-content">
-      <!-- Dashboard Page -->
       <section id="dashboard-page" class="page-section active">
         <div class="page-header">
           <h2>📊 Sensor Dashboard</h2>
@@ -531,7 +498,6 @@
         </div>
       </section>
 
-      <!-- AI Inference Page -->
       <section id="inference-page" class="page-section">
         <div class="page-header">
           <h2>🤖 AI Pattern Recognition</h2>
@@ -589,7 +555,6 @@
               <div class="pattern-confidence" id="current-pattern-confidence">-- %</div>
               
               <div class="probabilities" id="current-probabilities">
-                <!-- Probabilities will be inserted here -->
               </div>
             </div>
             
@@ -599,7 +564,6 @@
               <div class="pattern-confidence" id="next-pattern-confidence">-- %</div>
               
               <div class="probabilities" id="next-probabilities">
-                <!-- Probabilities will be inserted here -->
               </div>
             </div>
           </div>
@@ -625,7 +589,6 @@
         </div>
       </section>
 
-      <!-- Log Table Page -->
       <section id="log-page" class="page-section">
         <div class="page-header">
           <h2>📋 Sensor Data Log</h2>
@@ -665,7 +628,6 @@
         </div>
       </section>
 
-      <!-- Graph Page -->
       <section id="graph-page" class="page-section">
         <div class="page-header">
           <h2>📈 Real-time Sensor Charts</h2>
@@ -776,6 +738,89 @@
         }
         
       } catch (error) {
+        console.error('Error updating dashboard stats:', error);
+      }
+    }
+
+    async function updateInferenceDisplay() {
+      try {
+        const statsRes = await fetch(`${apiBase}/inference/stats`);
+        const stats = await statsRes.json();
+        
+        document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
+        document.getElementById('avg-inference-time').textContent = 
+          (stats.average_inference_time_ms || 0).toFixed(1) + ' ms';
+        
+        const inferenceStatus = document.getElementById('inference-status');
+        const inferenceIndicator = document.getElementById('inference-indicator');
+        
+        if (stats.is_active) {
+          inferenceStatus.textContent = 'Active';
+          inferenceIndicator.textContent = 'Running';
+          inferenceIndicator.className = 'card-status status-online';
+        } else {
+          inferenceStatus.textContent = 'Idle';
+          inferenceIndicator.textContent = 'Waiting';
+          inferenceIndicator.className = 'card-status status-offline';
+        }
+        
+        if (stats.last_inference_time) {
+          try {
+            const lastTime = new Date(stats.last_inference_time).toLocaleTimeString();
+            document.getElementById('last-inference-time').textContent = lastTime;
+          } catch (e) {
+            document.getElementById('last-inference-time').textContent = 'Error';
+          }
+        }
+        
+        const currentRes = await fetch(`${apiBase}/inference/current`);
+        if (currentRes.ok) {
+          const current = await currentRes.json();
+          
+          document.getElementById('current-pattern-name').textContent = 
+            current.current_pattern.prediction || '---';
+          document.getElementById('current-pattern-confidence').textContent = 
+            (current.current_pattern.confidence || 0).toFixed(1) + '%';
+          
+          document.getElementById('next-pattern-name').textContent = 
+            current.next_pattern.prediction || '---';
+          document.getElementById('next-pattern-confidence').textContent = 
+            (current.next_pattern.confidence || 0).toFixed(1) + '%';
+          
+          displayProbabilities('current-probabilities', current.current_pattern.probabilities);
+          displayProbabilities('next-probabilities', current.next_pattern.probabilities);
+        }
+        
+        const historyRes = await fetch(`${apiBase}/inference/latest?limit=10`);
+        const history = await historyRes.json();
+        
+        const tbody = document.getElementById('inference-table-body');
+        tbody.innerHTML = '';
+        
+        history.forEach(item => {
+          const tr = document.createElement('tr');
+          let displayTime = '--:--';
+          try {
+            const date = new Date(item.created_at);
+            if (!isNaN(date.getTime())) {
+              displayTime = date.toLocaleString();
+            }
+          } catch (e) {
+            console.error('Error parsing timestamp:', item.created_at);
+          }
+          
+          tr.innerHTML = `
+            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
+            <td>${item.current_pattern.prediction}</td>
+            <td>${item.current_pattern.confidence.toFixed(1)}%</td>
+            <td>${item.next_pattern.prediction}</td>
+            <td>${item.next_pattern.confidence.toFixed(1)}%</td>
+            <td>${item.inference_time_ms.toFixed(2)} ms</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        
+      } catch (error) {
         console.error('Error updating inference display:', error);
       }
     }
@@ -786,7 +831,6 @@
       
       if (!probabilities) return;
       
-      // Convert probabilities object to array and sort by value
       const probArray = Object.entries(probabilities)
         .map(([key, value]) => ({ name: key, value: parseFloat(value) }))
         .sort((a, b) => b.value - a.value);
@@ -877,7 +921,7 @@
       }
     }
 
-    function showPage(pageId) {
+    function showPage(event, pageId) {
       document.querySelectorAll('.page-section').forEach(page => {
         page.classList.remove('active');
       });
@@ -889,7 +933,7 @@
       const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
       document.getElementById(targetPage).classList.add('active');
       
-      event.target.closest('.nav-link').classList.add('active');
+      event.currentTarget.classList.add('active');
       
       if (pageId === 'log') {
         renderTable();
@@ -1000,13 +1044,11 @@
       }
     }
 
-    // Initialize
     fetchAndUpdate();
     updateGraphs();
     updateDashboardStats();
     updateInferenceDisplay();
 
-    // Update every 2 seconds
     setInterval(() => {
       fetchAndUpdate();
       
@@ -1020,93 +1062,4 @@
     }, 2000);
   </script>
 </body>
-</html>error('Error updating dashboard stats:', error);
-      }
-    }
-
-    async function updateInferenceDisplay() {
-      try {
-        // Get inference stats
-        const statsRes = await fetch(`${apiBase}/inference/stats`);
-        const stats = await statsRes.json();
-        
-        document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
-        document.getElementById('avg-inference-time').textContent = 
-          (stats.average_inference_time_ms || 0).toFixed(1) + ' ms';
-        
-        const inferenceStatus = document.getElementById('inference-status');
-        const inferenceIndicator = document.getElementById('inference-indicator');
-        
-        if (stats.is_active) {
-          inferenceStatus.textContent = 'Active';
-          inferenceIndicator.textContent = 'Running';
-          inferenceIndicator.className = 'card-status status-online';
-        } else {
-          inferenceStatus.textContent = 'Idle';
-          inferenceIndicator.textContent = 'Waiting';
-          inferenceIndicator.className = 'card-status status-offline';
-        }
-        
-        if (stats.last_inference_time) {
-          try {
-            const lastTime = new Date(stats.last_inference_time).toLocaleTimeString();
-            document.getElementById('last-inference-time').textContent = lastTime;
-          } catch (e) {
-            document.getElementById('last-inference-time').textContent = 'Error';
-          }
-        }
-        
-        // Get current inference
-        const currentRes = await fetch(`${apiBase}/inference/current`);
-        if (currentRes.ok) {
-          const current = await currentRes.json();
-          
-          // Update current pattern
-          document.getElementById('current-pattern-name').textContent = 
-            current.current_pattern.prediction || '---';
-          document.getElementById('current-pattern-confidence').textContent = 
-            (current.current_pattern.confidence || 0).toFixed(1) + '%';
-          
-          // Update next pattern
-          document.getElementById('next-pattern-name').textContent = 
-            current.next_pattern.prediction || '---';
-          document.getElementById('next-pattern-confidence').textContent = 
-            (current.next_pattern.confidence || 0).toFixed(1) + '%';
-          
-          // Update probabilities
-          displayProbabilities('current-probabilities', current.current_pattern.probabilities);
-          displayProbabilities('next-probabilities', current.next_pattern.probabilities);
-        }
-        
-        // Get inference history
-        const historyRes = await fetch(`${apiBase}/inference/latest?limit=10`);
-        const history = await historyRes.json();
-        
-        const tbody = document.getElementById('inference-table-body');
-        tbody.innerHTML = '';
-        
-        history.forEach(item => {
-          const tr = document.createElement('tr');
-          let displayTime = '--:--';
-          try {
-            const date = new Date(item.created_at);
-            if (!isNaN(date.getTime())) {
-              displayTime = date.toLocaleString();
-            }
-          } catch (e) {
-            console.error('Error parsing timestamp:', item.created_at);
-          }
-          
-          tr.innerHTML = `
-            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
-            <td>${item.current_pattern.prediction}</td>
-            <td>${item.current_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.next_pattern.prediction}</td>
-            <td>${item.next_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.inference_time_ms.toFixed(2)} ms</td>
-          `;
-          tbody.appendChild(tr);
-        });
-        
-      } catch (error) {
-        console.
+</html>
