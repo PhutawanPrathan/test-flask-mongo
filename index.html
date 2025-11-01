@@ -572,14 +572,7 @@
       </div>
       
       <div class="nav-item">
-        <div class="nav-link active" onclick="showPage(event, 'dashboard')">
-          <span class="nav-icon">📊</span>
-          <span class="nav-text">Dashboard</span>
-        </div>
-      </div>
-      
-      <div class="nav-item">
-        <div class="nav-link" onclick="showPage(event, 'inference')">
+        <div class="nav-link active" onclick="showPage(event, 'inference')">
           <span class="nav-icon">🤖</span>
           <span class="nav-text">AI Inference</span>
         </div>
@@ -601,52 +594,7 @@
     </nav>
 
     <main class="main-content">
-      <section id="dashboard-page" class="page-section active">
-        <div class="page-header">
-          <h2>📊 Sensor Dashboard</h2>
-          <p>Real-time monitoring of MPU1 and MPU2 sensors</p>
-        </div>
-        
-        <div class="status-cards">
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">🎯</div>
-              <div class="card-title">MPU1 Status</div>
-            </div>
-            <div class="card-value" id="mpu1-status">Online</div>
-            <div class="card-status status-online" id="mpu1-indicator">Active</div>
-          </div>
-          
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">🎯</div>
-              <div class="card-title">MPU2 Status</div>
-            </div>
-            <div class="card-value" id="mpu2-status">Online</div>
-            <div class="card-status status-online" id="mpu2-indicator">Active</div>
-          </div>
-          
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">📊</div>
-              <div class="card-title">Data Points</div>
-            </div>
-            <div class="card-value" id="data-count">0</div>
-            <div class="card-status status-online">Total Records</div>
-          </div>
-          
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">⏱️</div>
-              <div class="card-title">Last Update</div>
-            </div>
-            <div class="card-value" id="last-update" style="font-size: 1.2rem;">--:--</div>
-            <div class="card-status status-online">Live</div>
-          </div>
-        </div>
-      </section>
-
-      <section id="inference-page" class="page-section">
+      <section id="inference-page" class="page-section active">
         <div class="page-header">
           <h2>🤖 AI Pattern Recognition</h2>
           <p>Real-time robot behavior prediction and analysis</p>
@@ -733,6 +681,14 @@
               </thead>
               <tbody id="inference-table-body"></tbody>
             </table>
+          </div>
+          
+          <div class="pagination">
+            <button onclick="changeInferencePage(-1)" id="inference-prev-btn">← Previous</button>
+            <div class="page-info">
+              <span id="inference-page-number">Page 1 of 1</span>
+            </div>
+            <button onclick="changeInferencePage(1)" id="inference-next-btn">Next →</button>
           </div>
         </div>
       </section>
@@ -1034,45 +990,7 @@
         const statusRes = await fetch(`${apiBase}/status`);
         const status = await statusRes.json();
         
-        if (status.total_records) {
-          document.getElementById('data-count').textContent = status.total_records;
-        } else {
-          document.getElementById('data-count').textContent = allData.length;
-        }
-        
-        const mpu1Status = document.getElementById('mpu1-status');
-        const mpu1Indicator = document.getElementById('mpu1-indicator');
-        const mpu2Status = document.getElementById('mpu2-status');
-        const mpu2Indicator = document.getElementById('mpu2-indicator');
-        
-        if (status.mpu1_online) {
-          mpu1Status.textContent = 'Online';
-          mpu1Indicator.textContent = 'Active';
-          mpu1Indicator.className = 'card-status status-online';
-        } else {
-          mpu1Status.textContent = 'Offline';
-          mpu1Indicator.textContent = 'Inactive';
-          mpu1Indicator.className = 'card-status status-offline';
-        }
-        
-        if (status.mpu2_online) {
-          mpu2Status.textContent = 'Online';
-          mpu2Indicator.textContent = 'Active';
-          mpu2Indicator.className = 'card-status status-online';
-        } else {
-          mpu2Status.textContent = 'Offline';
-          mpu2Indicator.textContent = 'Inactive';
-          mpu2Indicator.className = 'card-status status-offline';
-        }
-        
-        if (status.last_update) {
-          try {
-            const lastTime = new Date(status.last_update).toLocaleTimeString();
-            document.getElementById('last-update').textContent = lastTime;
-          } catch (e) {
-            document.getElementById('last-update').textContent = 'Error';
-          }
-        }
+        // Dashboard page removed - stats no longer displayed
         
       } catch (error) {
         console.error('Error updating dashboard stats:', error);
@@ -1318,7 +1236,7 @@
         link.classList.remove('active');
       });
       
-      const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
+      const targetPage = pageId + '-page';
       document.getElementById(targetPage).classList.add('active');
       
       event.currentTarget.classList.add('active');
@@ -1441,7 +1359,6 @@
 
     fetchAndUpdate();
     updateGraphs();
-    updateDashboardStats();
     updateInferenceDisplay();
 
     setInterval(() => {
