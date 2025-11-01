@@ -824,60 +824,14 @@
     let inferenceCache = null;
     let inferenceCacheTime = 0;
     const CACHE_DURATION = 2000; // Cache for 2 seconds
-    
-    // Loading tracking
-    let loadStartTime = Date.now();
-    let loadingTimer = null;
-
-    // Update loading status
-    function updateLoadingStatus(message) {
-      const statusEl = document.getElementById('loading-status');
-      if (statusEl) {
-        statusEl.textContent = message;
-      }
-    }
-
-    function updateLoadingTimer() {
-      const timerEl = document.getElementById('loading-timer');
-      if (timerEl && loadingTimer) {
-        const elapsed = Math.round((Date.now() - loadStartTime) / 1000);
-        timerEl.textContent = `Elapsed: ${elapsed}s`;
-        
-        // Show additional info after 5 seconds
-        if (elapsed > 5) {
-          updateLoadingStatus('⏳ Render.com free tier may take 30-60s to wake up...');
-        }
-        if (elapsed > 15) {
-          updateLoadingStatus('⏳ Still waiting... Free servers sleep after inactivity');
-        }
-      }
-    }
-
-    function hideLoadingScreen() {
-      const loadingScreen = document.getElementById('loading-screen');
-      if (loadingScreen) {
-        clearInterval(loadingTimer);
-        loadingScreen.classList.add('hidden');
-        setTimeout(() => {
-          loadingScreen.style.display = 'none';
-        }, 500);
-        
-        const totalTime = Math.round((Date.now() - loadStartTime) / 1000);
-        console.log(`✅ Loaded in ${totalTime}s`);
-      }
-    }
-
-    // Start loading timer
-    loadingTimer = setInterval(updateLoadingTimer, 1000);
-    updateLoadingTimer();
 
     const vibrationLevels = {
-      0: { name: 'Idle', icon: '😴', message: 'System predicts idle state - no significant vibration expected', color: 'gray' },
-      1: { name: 'Creep', icon: '🟢', message: 'Predicted: Minor creep movement - monitoring situation', color: 'blue' },
-      2: { name: 'Micro Tremor', icon: '🟡', message: 'Predicted: Micro tremors - increased monitoring recommended', color: 'yellow' },
-      3: { name: 'Sudden Slip', icon: '🟠', message: 'WARNING: Sudden slip predicted - attention required!', color: 'orange' },
-      4: { name: 'Debris Flow', icon: '🔴', message: 'ALERT: DEBRIS FLOW PREDICTED - PREPARE IMMEDIATE ACTION!', color: 'red' },
-      5: { name: 'Intermittent', icon: '🔴', message: 'CRITICAL: Intermittent activity predicted - PREPARE TO EVACUATE!', color: 'darkred' }
+      0: { name: 'Idle', icon: '😴', message: 'System is idle - no significant vibration detected', color: 'gray' },
+      1: { name: 'Creep', icon: '🟢', message: 'Minor creep movement detected - monitoring situation', color: 'blue' },
+      2: { name: 'Micro Tremor', icon: '🟡', message: 'Micro tremors detected - increased monitoring recommended', color: 'yellow' },
+      3: { name: 'Sudden Slip', icon: '🟠', message: 'Sudden slip detected - attention required!', color: 'orange' },
+      4: { name: 'Debris Flow', icon: '🔴', message: 'DEBRIS FLOW DETECTED - IMMEDIATE ACTION REQUIRED!', color: 'red' },
+      5: { name: 'Intermittent', icon: '🔴', message: 'CRITICAL: Intermittent activity - EVACUATE IF NECESSARY!', color: 'darkred' }
     };
 
     // Audio context for sound generation
@@ -1052,38 +1006,10 @@
     }
 
     async function updateInferenceDisplay() {
-      // Prevent multiple simultaneous updates
-      if (isUpdating) return;
-      isUpdating = true;
-      
       try {
-        updateLoadingStatus('🤖 Loading AI inference data...');
-        
-        // Use cached data if available and fresh
-        const now = Date.now();
-        if (inferenceCache && (now - inferenceCacheTime) < CACHE_DURATION) {
-          renderInferenceTable();
-          checkVibrationLevel(inferenceCache.current_pattern.prediction);
-          isUpdating = false;
-          hideLoadingScreen();
-          return;
-        }
-        
-        const fetchStart = Date.now();
-        
-        // Parallel fetch for better performance
-        const [statsRes, currentRes, historyRes] = await Promise.all([
-          fetch(`${apiBase}/inference/stats`),
-          fetch(`${apiBase}/inference/current`),
-          fetch(`${apiBase}/inference/latest?limit=50`)
-        ]);
-        
-        const fetchTime = Date.now() - fetchStart;
-        console.log(`Inference data fetched in ${fetchTime}ms`);
-        
+        const statsRes = await fetch(`${apiBase}/inference/stats`);
         const stats = await statsRes.json();
         
-        // Update stats cards
         document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
         document.getElementById('avg-inference-time').textContent = 
           (stats.average_inference_time_ms || 0).toFixed(1) + ' ms';
@@ -1110,11 +1036,9 @@
           }
         }
         
-        // Update current pattern
+        const currentRes = await fetch(`${apiBase}/inference/current`);
         if (currentRes.ok) {
           const current = await currentRes.json();
-          inferenceCache = current;
-          inferenceCacheTime = now;
           
           document.getElementById('current-pattern-name').textContent = 
             current.current_pattern.prediction || '---';
@@ -1129,26 +1053,22 @@
           displayProbabilities('current-probabilities', current.current_pattern.probabilities);
           displayProbabilities('next-probabilities', current.next_pattern.probabilities);
           
+          // Check vibration level based on current pattern
           checkVibrationLevel(current.current_pattern.prediction);
         }
         
-        // Update inference history
+        const historyRes = await fetch(`${apiBase}/inference/latest?limit=100`);
         const history = await historyRes.json();
-        allInferenceData = history.reverse();
-        maxInferencePages = Math.ceil(allInferenceData.length / inferenceRowsPerPage);
-        renderInferenceTable();
         
-        // Hide loading screen on successful load
-        hideLoadingScreen();
+        // Store all inference data for pagination
+        allInferenceData = history.reverse(); // Reverse to show latest first
+        maxInferencePages = Math.ceil(allInferenceData.length / inferenceRowsPerPage);
+        
+        // Render the current page
+        renderInferenceTable();
         
       } catch (error) {
         console.error('Error updating inference display:', error);
-        updateLoadingStatus('❌ Failed to load inference data');
-        
-        // Hide loading screen even on error after 3 seconds
-        setTimeout(hideLoadingScreen, 3000);
-      } finally {
-        isUpdating = false;
       }
     }
 
@@ -1340,21 +1260,15 @@
 
     async function updateGraphs() {
       try {
-        // Use existing data if available instead of fetching again
-        let chartData;
-        if (allData.length > 0) {
-          chartData = allData.slice(0, 30).reverse(); // Reduced from 50 to 30 points
-        } else {
-          const res = await fetch(`${apiBase}/latest`);
-          const data = await res.json();
-          chartData = data.slice(0, 30).reverse();
-        }
+        const res = await fetch(`${apiBase}/latest`);
+        const data = await res.json();
 
-        if (!chartData || chartData.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No data available for charts');
           return;
         }
 
+        const chartData = data.slice(0, 50).reverse();
         const labels = chartData.map(d => {
           try {
             const date = new Date(d.timestamp);
@@ -1403,8 +1317,8 @@
             borderWidth: 2,
             fill: false,
             tension: 0.4,
-            pointRadius: 1, // Reduced from 2
-            pointHoverRadius: 3 // Reduced from 4
+            pointRadius: 2,
+            pointHoverRadius: 4
           }));
 
           if (!charts[config.id]) {
@@ -1415,7 +1329,6 @@
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false, // Disable animation for faster rendering
                 interaction: {
                   intersect: false,
                   mode: 'index'
@@ -1452,49 +1365,24 @@
       }
     }
 
-    // Initial load with diagnostics
-    console.log('🚀 Starting initial load...');
-    console.log('📍 API Base:', apiBase);
-    
-    updateLoadingStatus('📡 Connecting to Render API...');
-    
-    Promise.all([
-      fetchAndUpdate(),
-      updateInferenceDisplay()
-    ]).then(() => {
-      console.log('✅ Initial load complete');
-      hideLoadingScreen();
-    }).catch(err => {
-      console.error('❌ Initial load failed:', err);
-      updateLoadingStatus('❌ Connection failed. Retrying...');
-      setTimeout(hideLoadingScreen, 3000);
-    });
+    fetchAndUpdate();
+    updateGraphs();
+    updateInferenceDisplay();
 
-    // Optimized update intervals
     setInterval(() => {
-      const now = Date.now();
-      
-      // Throttle updates to prevent overload
-      if (now - lastUpdateTime < UPDATE_INTERVAL) {
-        return;
-      }
-      lastUpdateTime = now;
-      
-      // Only fetch sensor data
       fetchAndUpdate();
       
-      // Update active page content
       if (document.getElementById('graph-page').classList.contains('active')) {
         updateGraphs();
       }
       
       if (document.getElementById('inference-page').classList.contains('active')) {
         updateInferenceDisplay();
-      } else {
-        // Always update inference in background to check vibration levels (but use cache)
-        updateInferenceDisplay();
       }
-    }, UPDATE_INTERVAL);
+      
+      // Always update inference in background to check vibration levels
+      updateInferenceDisplay();
+    }, 2000);
 
     // Close alert when clicking outside
     document.getElementById('alert-overlay').addEventListener('click', function(e) {
