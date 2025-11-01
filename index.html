@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🤖 Robot Sensor & Inference Dashboard (Optimized)</title>
+  <title>🤖 Robot Sensor & Inference Dashboard</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -199,6 +199,154 @@
       color: #e74c3c;
     }
 
+    /* Vibration Alert Modal */
+    .alert-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 9999;
+      backdrop-filter: blur(5px);
+      animation: fadeInOverlay 0.3s ease;
+    }
+
+    .alert-overlay.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes fadeInOverlay {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .alert-modal {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      position: relative;
+      animation: popIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      max-width: 90vw;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .alert-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: pulse 1s infinite;
+    }
+
+    .alert-title {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .alert-message {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+      color: #666;
+    }
+
+    .alert-level {
+      display: inline-block;
+      padding: 0.5rem 1.5rem;
+      border-radius: 30px;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+    }
+
+    .alert-close {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .alert-close:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Alert Size Classes */
+    .alert-level-0 .alert-modal { width: 300px; }
+    .alert-level-1 .alert-modal { width: 350px; }
+    .alert-level-2 .alert-modal { width: 400px; }
+    .alert-level-3 .alert-modal { width: 450px; }
+    .alert-level-4 .alert-modal { width: 500px; }
+    .alert-level-5 .alert-modal { width: 550px; }
+
+    /* Alert Color Classes */
+    .alert-color-0 { background: rgba(149, 165, 166, 0.2); color: #7f8c8d; }
+    .alert-color-1 { background: rgba(52, 152, 219, 0.2); color: #2980b9; }
+    .alert-color-2 { background: rgba(241, 196, 15, 0.2); color: #f39c12; }
+    .alert-color-3 { background: rgba(230, 126, 34, 0.2); color: #d35400; }
+    .alert-color-4 { background: rgba(231, 76, 60, 0.2); color: #c0392b; }
+    .alert-color-5 { background: rgba(192, 57, 43, 0.2); color: #e74c3c; }
+
+    .alert-border-0 { border: 3px solid #95a5a6; }
+    .alert-border-1 { border: 3px solid #3498db; }
+    .alert-border-2 { border: 3px solid #f1c40f; }
+    .alert-border-3 { border: 3px solid #e67e22; }
+    .alert-border-4 { border: 3px solid #e74c3c; }
+    .alert-border-5 { border: 3px solid #c0392b; }
+
+    /* Vibration Level Indicator */
+    .vibration-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      z-index: 9998;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .vibration-indicator.active {
+      display: block;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(400px); }
+      to { transform: translateX(0); }
+    }
+
+    .vib-level {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+
+    .vib-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
     .inference-container {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(20px);
@@ -392,45 +540,6 @@
       height: 300px;
     }
 
-    .loading-indicator {
-      text-align: center;
-      padding: 2rem;
-      color: #667eea;
-      font-weight: 500;
-    }
-
-    .error-message {
-      text-align: center;
-      padding: 2rem;
-      color: #e74c3c;
-      background: rgba(231, 76, 60, 0.1);
-      border-radius: 10px;
-      margin: 1rem 0;
-    }
-
-    /* Performance indicator */
-    .perf-indicator {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 12px;
-      padding: 0.75rem 1rem;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-      font-size: 0.85rem;
-      z-index: 9999;
-      display: none;
-    }
-
-    .perf-indicator.show {
-      display: block;
-    }
-
-    .perf-good { color: #27ae60; }
-    .perf-medium { color: #f39c12; }
-    .perf-slow { color: #e74c3c; }
-
     @media (max-width: 768px) {
       .sidebar {
         width: 70px;
@@ -485,7 +594,52 @@
     </nav>
 
     <main class="main-content">
-      <section id="inference-page" class="page-section active">
+      <section id="dashboard-page" class="page-section active">
+        <div class="page-header">
+          <h2>📊 Sensor Dashboard</h2>
+          <p>Real-time monitoring of MPU1 and MPU2 sensors</p>
+        </div>
+        
+        <div class="status-cards">
+          <div class="status-card">
+            <div class="card-header">
+              <div class="card-icon">🎯</div>
+              <div class="card-title">MPU1 Status</div>
+            </div>
+            <div class="card-value" id="mpu1-status">Online</div>
+            <div class="card-status status-online" id="mpu1-indicator">Active</div>
+          </div>
+          
+          <div class="status-card">
+            <div class="card-header">
+              <div class="card-icon">🎯</div>
+              <div class="card-title">MPU2 Status</div>
+            </div>
+            <div class="card-value" id="mpu2-status">Online</div>
+            <div class="card-status status-online" id="mpu2-indicator">Active</div>
+          </div>
+          
+          <div class="status-card">
+            <div class="card-header">
+              <div class="card-icon">📊</div>
+              <div class="card-title">Data Points</div>
+            </div>
+            <div class="card-value" id="data-count">0</div>
+            <div class="card-status status-online">Total Records</div>
+          </div>
+          
+          <div class="status-card">
+            <div class="card-header">
+              <div class="card-icon">⏱️</div>
+              <div class="card-title">Last Update</div>
+            </div>
+            <div class="card-value" id="last-update" style="font-size: 1.2rem;">--:--</div>
+            <div class="card-status status-online">Live</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="inference-page" class="page-section">
         <div class="page-header">
           <h2>🤖 AI Pattern Recognition</h2>
           <p>Real-time robot behavior prediction and analysis</p>
@@ -558,7 +712,6 @@
         
         <div class="data-table-container">
           <h3 style="margin-bottom: 1.5rem;">📋 Inference History</h3>
-          <div id="inference-loading" class="loading-indicator" style="display:none;">Loading...</div>
           <div class="table-wrapper">
             <table>
               <thead>
@@ -574,6 +727,14 @@
               <tbody id="inference-table-body"></tbody>
             </table>
           </div>
+          
+          <div class="pagination">
+            <button onclick="changeInferencePage(-1)" id="inference-prev-btn">← Previous</button>
+            <div class="page-info">
+              <span id="inference-page-number">Page 1 of 1</span>
+            </div>
+            <button onclick="changeInferencePage(1)" id="inference-next-btn">Next →</button>
+          </div>
         </div>
       </section>
 
@@ -584,8 +745,6 @@
         </div>
         
         <div class="data-table-container">
-          <div id="log-loading" class="loading-indicator" style="display:none;">Loading data...</div>
-          <div id="log-error" class="error-message" style="display: none;"></div>
           <div class="table-wrapper">
             <table>
               <thead>
@@ -623,9 +782,6 @@
           <h2>📈 Real-time Sensor Charts</h2>
           <p>Live visualization of sensor data streams</p>
         </div>
-        
-        <div id="graph-loading" class="loading-indicator" style="display:none;">Loading charts...</div>
-        <div id="graph-error" class="error-message" style="display: none;"></div>
         
         <div class="charts-grid">
           <div class="chart-container">
@@ -672,150 +828,261 @@
     </main>
   </div>
 
-  <!-- Performance Indicator -->
-  <div id="perf-indicator" class="perf-indicator">
-    <span id="perf-text">Loading...</span>
+  <!-- Vibration Alert Modal -->
+  <div id="alert-overlay" class="alert-overlay">
+    <div class="alert-modal">
+      <div class="alert-icon" id="alert-icon">⚠️</div>
+      <div class="alert-title" id="alert-title">Vibration Alert</div>
+      <div class="alert-level" id="alert-level-badge">Level 0</div>
+      <div class="alert-message" id="alert-message">Vibration detected</div>
+      <button class="alert-close" onclick="closeAlert()">Acknowledge</button>
+    </div>
+  </div>
+
+  <!-- Vibration Level Indicator -->
+  <div id="vibration-indicator" class="vibration-indicator">
+    <div class="vib-level">Current Vibration</div>
+    <div class="vib-value" id="vib-display">Idle</div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const apiBase = "https://test-flask-mongo.onrender.com";
-    let currentLogPage = 1;
+    let allData = [];
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    let maxPages = 1;
     let charts = {};
-    let isLoadingLog = false;
-    let isLoadingGraph = false;
-    let isLoadingInference = false;
+    let lastVibrationLevel = -1;
+    let alertShown = false;
     
-    // Request queue to avoid overwhelming the server
-    let pendingRequests = 0;
-    const MAX_CONCURRENT_REQUESTS = 3;
-    
-    // Performance tracking
-    let lastRequestTime = 0;
-    let avgResponseTime = 0;
-    let requestCount = 0;
-    
-    // Adaptive polling - slow down if server is slow
-    let currentPollInterval = 2000;  // Start at 2 seconds
-    const MIN_POLL_INTERVAL = 1000;  // Minimum 1 second
-    const MAX_POLL_INTERVAL = 5000;  // Maximum 5 seconds
-    
-    // Show loading indicator
-    function showLoading(section) {
-      if (section === 'log') {
-        document.getElementById('log-loading').style.display = 'block';
-        document.getElementById('log-error').style.display = 'none';
-      } else if (section === 'graph') {
-        document.getElementById('graph-loading').style.display = 'block';
-        document.getElementById('graph-error').style.display = 'none';
-      } else if (section === 'inference') {
-        document.getElementById('inference-loading').style.display = 'block';
+    // Inference history pagination
+    let allInferenceData = [];
+    let currentInferencePage = 1;
+    const inferenceRowsPerPage = 10;
+    let maxInferencePages = 1;
+
+    const vibrationLevels = {
+      0: { name: 'Idle', icon: '😴', message: 'System is idle - no significant vibration detected', color: 'gray' },
+      1: { name: 'Creep', icon: '🟢', message: 'Minor creep movement detected - monitoring situation', color: 'blue' },
+      2: { name: 'Micro Tremor', icon: '🟡', message: 'Micro tremors detected - increased monitoring recommended', color: 'yellow' },
+      3: { name: 'Sudden Slip', icon: '🟠', message: 'Sudden slip detected - attention required!', color: 'orange' },
+      4: { name: 'Debris Flow', icon: '🔴', message: 'DEBRIS FLOW DETECTED - IMMEDIATE ACTION REQUIRED!', color: 'red' },
+      5: { name: 'Intermittent', icon: '🔴', message: 'CRITICAL: Intermittent activity - EVACUATE IF NECESSARY!', color: 'darkred' }
+    };
+
+    // Audio context for sound generation
+    let audioContext = null;
+
+    function initAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
       }
+      return audioContext;
     }
 
-    // Hide loading indicator
-    function hideLoading(section) {
-      if (section === 'log') {
-        document.getElementById('log-loading').style.display = 'none';
-      } else if (section === 'graph') {
-        document.getElementById('graph-loading').style.display = 'none';
-      } else if (section === 'inference') {
-        document.getElementById('inference-loading').style.display = 'none';
-      }
-    }
-
-    // Show error message
-    function showError(section, message) {
-      if (section === 'log') {
-        const errorEl = document.getElementById('log-error');
-        errorEl.textContent = message;
-        errorEl.style.display = 'block';
-        hideLoading('log');
-      } else if (section === 'graph') {
-        const errorEl = document.getElementById('graph-error');
-        errorEl.textContent = message;
-        errorEl.style.display = 'block';
-        hideLoading('graph');
-      }
-    }
-    
-    // Enhanced fetch with timeout and retry
-    async function fetchWithTimeout(url, timeout = 8000) {
-      const startTime = performance.now();
-      
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      
+    function playLevelSound(level) {
       try {
-        pendingRequests++;
-        const response = await fetch(url, {
-          signal: controller.signal,
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        clearTimeout(id);
+        const ctx = initAudioContext();
         
-        const endTime = performance.now();
-        const responseTime = endTime - startTime;
+        // Different sound patterns for each level
+        switch(level) {
+          case 0:
+            // Idle - no sound
+            break;
+          case 1:
+            // Creep - single soft beep
+            playSingleBeep(ctx, 400, 0.2, 0.3);
+            break;
+          case 2:
+            // Micro Tremor - double beep
+            playSingleBeep(ctx, 500, 0.3, 0.2);
+            setTimeout(() => playSingleBeep(ctx, 500, 0.3, 0.2), 200);
+            break;
+          case 3:
+          case 4:
+          case 5:
+            // Levels 3, 4, 5 - emergency siren sound
+            playSirenSound(ctx);
+            break;
+        }
+      } catch (e) {
+        console.log('Audio not supported:', e);
+      }
+    }
+
+    function playSingleBeep(ctx, frequency, volume, duration) {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+      
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + duration);
+    }
+
+    function playSirenSound(ctx) {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Siren effect - alternating frequencies
+      oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+      oscillator.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.5);
+      oscillator.frequency.linearRampToValueAtTime(800, ctx.currentTime + 1);
+      oscillator.frequency.linearRampToValueAtTime(400, ctx.currentTime + 1.5);
+      oscillator.frequency.linearRampToValueAtTime(800, ctx.currentTime + 2);
+      
+      oscillator.type = 'square';
+      
+      gainNode.gain.setValueAtTime(0.4, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 2);
+      
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 2);
+    }
+
+    function showVibrationAlert(level) {
+      const info = vibrationLevels[level];
+      const overlay = document.getElementById('alert-overlay');
+      const modal = overlay.querySelector('.alert-modal');
+      
+      // Update overlay class for sizing
+      overlay.className = `alert-overlay active alert-level-${level}`;
+      
+      // Update modal content
+      document.getElementById('alert-icon').textContent = info.icon;
+      document.getElementById('alert-title').textContent = `⚠️ ${info.name} Alert!`;
+      document.getElementById('alert-level-badge').textContent = `Level ${level}: ${info.name}`;
+      document.getElementById('alert-level-badge').className = `alert-level alert-color-${level}`;
+      document.getElementById('alert-message').textContent = info.message;
+      
+      // Update modal border
+      modal.className = `alert-modal alert-border-${level}`;
+      
+      // Play level-specific sound
+      playLevelSound(level);
+      
+      alertShown = true;
+    }
+
+    function closeAlert() {
+      document.getElementById('alert-overlay').classList.remove('active');
+      alertShown = false;
+    }
+
+    function updateVibrationIndicator(level) {
+      const indicator = document.getElementById('vibration-indicator');
+      const display = document.getElementById('vib-display');
+      const info = vibrationLevels[level];
+      
+      display.textContent = `${info.icon} ${info.name}`;
+      display.className = `vib-value alert-color-${level}`;
+      
+      if (level > 0) {
+        indicator.classList.add('active');
+      } else {
+        indicator.classList.remove('active');
+      }
+    }
+
+    function checkVibrationLevel(currentPattern) {
+      // Map pattern prediction to vibration level
+      let level = 0;
+      
+      if (typeof currentPattern === 'string') {
+        const pattern = currentPattern.toLowerCase();
+        if (pattern.includes('idle') || pattern === '0') level = 0;
+        else if (pattern.includes('creep') || pattern === '1') level = 1;
+        else if (pattern.includes('micro') || pattern.includes('tremor') || pattern === '2') level = 2;
+        else if (pattern.includes('sudden') || pattern.includes('slip') || pattern === '3') level = 3;
+        else if (pattern.includes('debris') || pattern.includes('flow') || pattern === '4') level = 4;
+        else if (pattern.includes('intermittent') || pattern === '5') level = 5;
+      } else if (typeof currentPattern === 'number') {
+        level = currentPattern;
+      }
+      
+      // Update indicator
+      updateVibrationIndicator(level);
+      
+      // Show alert if level changed and >= 2
+      if (level !== lastVibrationLevel && level >= 2) {
+        showVibrationAlert(level);
+        alertShown = false; // Reset to allow next alert
+      } else if (level !== lastVibrationLevel && level < 2) {
+        closeAlert(); // Auto-close if level drops below 2
+        alertShown = false;
+      }
+      
+      lastVibrationLevel = level;
+    }
+
+    function isNewEntry(entry) {
+      return !allData.some(d => d.timestamp === entry.timestamp);
+    }
+
+    async function updateDashboardStats() {
+      try {
+        const statusRes = await fetch(`${apiBase}/status`);
+        const status = await statusRes.json();
         
-        // Update performance metrics
-        requestCount++;
-        avgResponseTime = ((avgResponseTime * (requestCount - 1)) + responseTime) / requestCount;
-        updatePerformanceIndicator(responseTime);
-        
-        // Adjust polling interval based on response time
-        if (responseTime > 3000) {
-          currentPollInterval = Math.min(currentPollInterval + 500, MAX_POLL_INTERVAL);
-        } else if (responseTime < 1000) {
-          currentPollInterval = Math.max(currentPollInterval - 200, MIN_POLL_INTERVAL);
+        if (status.total_records) {
+          document.getElementById('data-count').textContent = status.total_records;
+        } else {
+          document.getElementById('data-count').textContent = allData.length;
         }
         
-        pendingRequests--;
-        return response;
+        const mpu1Status = document.getElementById('mpu1-status');
+        const mpu1Indicator = document.getElementById('mpu1-indicator');
+        const mpu2Status = document.getElementById('mpu2-status');
+        const mpu2Indicator = document.getElementById('mpu2-indicator');
+        
+        if (status.mpu1_online) {
+          mpu1Status.textContent = 'Online';
+          mpu1Indicator.textContent = 'Active';
+          mpu1Indicator.className = 'card-status status-online';
+        } else {
+          mpu1Status.textContent = 'Offline';
+          mpu1Indicator.textContent = 'Inactive';
+          mpu1Indicator.className = 'card-status status-offline';
+        }
+        
+        if (status.mpu2_online) {
+          mpu2Status.textContent = 'Online';
+          mpu2Indicator.textContent = 'Active';
+          mpu2Indicator.className = 'card-status status-online';
+        } else {
+          mpu2Status.textContent = 'Offline';
+          mpu2Indicator.textContent = 'Inactive';
+          mpu2Indicator.className = 'card-status status-offline';
+        }
+        
+        if (status.last_update) {
+          try {
+            const lastTime = new Date(status.last_update).toLocaleTimeString();
+            document.getElementById('last-update').textContent = lastTime;
+          } catch (e) {
+            document.getElementById('last-update').textContent = 'Error';
+          }
+        }
+        
       } catch (error) {
-        pendingRequests--;
-        clearTimeout(id);
-        throw error;
+        console.error('Error updating dashboard stats:', error);
       }
-    }
-    
-    function updatePerformanceIndicator(responseTime) {
-      const indicator = document.getElementById('perf-indicator');
-      const text = document.getElementById('perf-text');
-      
-      let className = 'perf-good';
-      let status = '🟢 Fast';
-      
-      if (responseTime > 3000) {
-        className = 'perf-slow';
-        status = '🔴 Slow';
-      } else if (responseTime > 1500) {
-        className = 'perf-medium';
-        status = '🟡 Medium';
-      }
-      
-      text.className = className;
-      text.textContent = `${status} (${Math.round(responseTime)}ms)`;
-      
-      indicator.classList.add('show');
-      setTimeout(() => indicator.classList.remove('show'), 3000);
     }
 
     async function updateInferenceDisplay() {
-      if (isLoadingInference || pendingRequests >= MAX_CONCURRENT_REQUESTS) return;
-      
-      isLoadingInference = true;
-      showLoading('inference');
-      
       try {
-        // Fetch stats and current inference in parallel
-        const [statsRes, currentRes] = await Promise.all([
-          fetchWithTimeout(`${apiBase}/inference/stats`),
-          fetchWithTimeout(`${apiBase}/inference/current`)
-        ]);
-        
+        const statsRes = await fetch(`${apiBase}/inference/stats`);
         const stats = await statsRes.json();
         
         document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
@@ -844,6 +1111,7 @@
           }
         }
         
+        const currentRes = await fetch(`${apiBase}/inference/current`);
         if (currentRes.ok) {
           const current = await currentRes.json();
           
@@ -859,45 +1127,74 @@
           
           displayProbabilities('current-probabilities', current.current_pattern.probabilities);
           displayProbabilities('next-probabilities', current.next_pattern.probabilities);
+          
+          // Check vibration level based on current pattern
+          checkVibrationLevel(current.current_pattern.prediction);
         }
         
-        // Fetch inference history (lighter payload)
-        const historyRes = await fetchWithTimeout(`${apiBase}/inference/latest?limit=10`);
+        const historyRes = await fetch(`${apiBase}/inference/latest?limit=100`);
         const history = await historyRes.json();
         
-        const tbody = document.getElementById('inference-table-body');
-        tbody.innerHTML = '';
+        // Store all inference data for pagination
+        allInferenceData = history.reverse(); // Reverse to show latest first
+        maxInferencePages = Math.ceil(allInferenceData.length / inferenceRowsPerPage);
         
-        history.forEach(item => {
-          const tr = document.createElement('tr');
-          let displayTime = '--:--';
-          try {
-            const date = new Date(item.created_at);
-            if (!isNaN(date.getTime())) {
-              displayTime = date.toLocaleString();
-            }
-          } catch (e) {
-            console.error('Error parsing timestamp:', item.created_at);
-          }
-          
-          tr.innerHTML = `
-            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
-            <td>${item.current_pattern.prediction}</td>
-            <td>${item.current_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.next_pattern.prediction}</td>
-            <td>${item.next_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.inference_time_ms.toFixed(2)} ms</td>
-          `;
-          tbody.appendChild(tr);
-        });
-        
-        hideLoading('inference');
+        // Render the current page
+        renderInferenceTable();
         
       } catch (error) {
         console.error('Error updating inference display:', error);
-        hideLoading('inference');
-      } finally {
-        isLoadingInference = false;
+      }
+    }
+
+    function renderInferenceTable() {
+      const tbody = document.getElementById('inference-table-body');
+      tbody.innerHTML = '';
+      
+      if (allInferenceData.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="6" style="text-align: center; padding: 2rem; color: #999;">No inference data available yet...</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+      
+      const start = (currentInferencePage - 1) * inferenceRowsPerPage;
+      const pageData = allInferenceData.slice(start, start + inferenceRowsPerPage);
+      
+      pageData.forEach(item => {
+        const tr = document.createElement('tr');
+        let displayTime = '--:--';
+        try {
+          const date = new Date(item.created_at);
+          if (!isNaN(date.getTime())) {
+            displayTime = date.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error parsing timestamp:', item.created_at);
+        }
+        
+        tr.innerHTML = `
+          <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
+          <td>${item.current_pattern.prediction}</td>
+          <td>${item.current_pattern.confidence.toFixed(1)}%</td>
+          <td>${item.next_pattern.prediction}</td>
+          <td>${item.next_pattern.confidence.toFixed(1)}%</td>
+          <td>${item.inference_time_ms.toFixed(2)} ms</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+      // Update pagination info
+      document.getElementById('inference-page-number').textContent = `Page ${currentInferencePage} of ${maxInferencePages}`;
+      document.getElementById('inference-prev-btn').disabled = currentInferencePage === 1;
+      document.getElementById('inference-next-btn').disabled = currentInferencePage === maxInferencePages || allInferenceData.length === 0;
+    }
+
+    function changeInferencePage(delta) {
+      const newPage = currentInferencePage + delta;
+      if (newPage >= 1 && newPage <= maxInferencePages) {
+        currentInferencePage = newPage;
+        renderInferenceTable();
       }
     }
 
@@ -925,110 +1222,124 @@
       });
     }
 
-    async function loadLogData(page = 1) {
-      if (isLoadingLog || pendingRequests >= MAX_CONCURRENT_REQUESTS) return;
-      
-      isLoadingLog = true;
-      showLoading('log');
-      
+    async function fetchAndUpdate() {
       try {
-        console.log(`Fetching log data for page ${page}...`);
-        const response = await fetchWithTimeout(`${apiBase}/data?page=${page}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Received log data:', data);
-        
-        hideLoading('log');
-        
-        const tbody = document.getElementById('log-table-body');
-        tbody.innerHTML = '';
-        
-        if (!data || data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="13" style="text-align: center; padding: 2rem; color: #999;">No data available on this page.</td></tr>';
-          document.getElementById('page-number').textContent = `Page ${page}`;
-          document.getElementById('prev-btn').disabled = page === 1;
-          document.getElementById('next-btn').disabled = true;
-          return;
-        }
-        
-        data.forEach(d => {
-          const tr = document.createElement('tr');
-          
-          let displayTime = '--:--';
-          try {
-            const date = new Date(d.timestamp);
-            if (!isNaN(date.getTime())) {
-              displayTime = date.toLocaleString();
-            }
-          } catch (e) {
-            console.error('Error parsing timestamp:', d.timestamp);
+        const res = await fetch(`${apiBase}/latest`);
+        const latest = await res.json();
+
+        let newEntries = 0;
+        latest.forEach(entry => {
+          if (isNewEntry(entry)) {
+            allData.unshift(entry);
+            newEntries++;
           }
-          
-          tr.innerHTML = `
-            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
-            <td>${parseFloat(d.mpu1_ax || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu1_ay || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu1_az || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu1_gx || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu1_gy || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu1_gz || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu2_ax || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu2_ay || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu2_az || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu2_gx || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu2_gy || 0).toFixed(2)}</td>
-            <td>${parseFloat(d.mpu2_gz || 0).toFixed(2)}</td>
-          `;
-          tbody.appendChild(tr);
         });
-        
-        // Update pagination
-        document.getElementById('page-number').textContent = `Page ${page}`;
-        document.getElementById('prev-btn').disabled = page === 1;
-        document.getElementById('next-btn').disabled = data.length < 10;
-        
-        currentLogPage = page;
-        
-      } catch (error) {
-        console.error('Error loading log data:', error);
-        showError('log', `Failed to load data: ${error.message}. Please check your API connection.`);
-      } finally {
-        isLoadingLog = false;
+
+        if (allData.length > 500) {
+          allData = allData.slice(0, 500);
+        }
+
+        maxPages = Math.ceil(allData.length / rowsPerPage);
+        updateDashboardStats();
+
+        // Update table if on log page
+        if (document.getElementById('log-page').classList.contains('active')) {
+          renderTable();
+        }
+
+        // Update graphs if on graph page
+        if (document.getElementById('graph-page').classList.contains('active')) {
+          updateGraphs();
+        }
+
+      } catch (err) {
+        console.error("Error fetching latest:", err);
       }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("log-table-body");
+      tbody.innerHTML = "";
+
+      const start = (currentPage - 1) * rowsPerPage;
+      const pageData = allData.slice(start, start + rowsPerPage);
+
+      if (pageData.length === 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = '<td colspan="13" style="text-align: center; padding: 2rem; color: #999;">No data available. Waiting for sensor data...</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      pageData.forEach(d => {
+        const tr = document.createElement("tr");
+        
+        let displayTime = "--:--";
+        try {
+          const date = new Date(d.timestamp);
+          if (!isNaN(date.getTime())) {
+            displayTime = date.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error parsing timestamp:', d.timestamp);
+        }
+        
+        tr.innerHTML = `
+          <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
+          <td>${parseFloat(d.mpu1_ax).toFixed(2)}</td><td>${parseFloat(d.mpu1_ay).toFixed(2)}</td><td>${parseFloat(d.mpu1_az).toFixed(2)}</td>
+          <td>${parseFloat(d.mpu1_gx).toFixed(2)}</td><td>${parseFloat(d.mpu1_gy).toFixed(2)}</td><td>${parseFloat(d.mpu1_gz).toFixed(2)}</td>
+          <td>${parseFloat(d.mpu2_ax).toFixed(2)}</td><td>${parseFloat(d.mpu2_ay).toFixed(2)}</td><td>${parseFloat(d.mpu2_az).toFixed(2)}</td>
+          <td>${parseFloat(d.mpu2_gx).toFixed(2)}</td><td>${parseFloat(d.mpu2_gy).toFixed(2)}</td><td>${parseFloat(d.mpu2_gz).toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      maxPages = Math.max(1, Math.ceil(allData.length / rowsPerPage));
+      document.getElementById("page-number").textContent = `Page ${currentPage} of ${maxPages}`;
+      document.getElementById("prev-btn").disabled = currentPage === 1;
+      document.getElementById("next-btn").disabled = currentPage === maxPages || allData.length === 0;
     }
 
     function changePage(delta) {
-      const newPage = currentLogPage + delta;
-      if (newPage >= 1) {
-        loadLogData(newPage);
+      const newPage = currentPage + delta;
+      if (newPage >= 1 && newPage <= maxPages) {
+        currentPage = newPage;
+        renderTable();
       }
     }
 
-    async function loadGraphData() {
-      if (isLoadingGraph || pendingRequests >= MAX_CONCURRENT_REQUESTS) return;
+    function showPage(event, pageId) {
+      event.preventDefault();
       
-      isLoadingGraph = true;
-      showLoading('graph');
+      document.querySelectorAll('.page-section').forEach(page => {
+        page.classList.remove('active');
+      });
       
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      
+      const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
+      document.getElementById(targetPage).classList.add('active');
+      
+      event.currentTarget.classList.add('active');
+      
+      if (pageId === 'log') {
+        renderTable();
+      } else if (pageId === 'inference') {
+        updateInferenceDisplay();
+      } else if (pageId === 'graph') {
+        updateGraphs();
+      }
+    }
+
+    async function updateGraphs() {
       try {
-        console.log('Fetching graph data...');
-        const response = await fetchWithTimeout(`${apiBase}/latest`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Received graph data:', data);
-        
-        hideLoading('graph');
-        
+        const res = await fetch(`${apiBase}/latest`);
+        const data = await res.json();
+
         if (!data || data.length === 0) {
-          showError('graph', 'No data available for charts. Waiting for sensor data...');
+          console.log('No data available for charts');
           return;
         }
 
@@ -1037,7 +1348,7 @@
           try {
             const date = new Date(d.timestamp);
             if (isNaN(date.getTime())) {
-              return 'Invalid';
+              return 'Invalid Time';
             }
             return date.toLocaleTimeString();
           } catch (e) {
@@ -1049,28 +1360,24 @@
           {
             id: "mpu1Accel",
             fields: ["mpu1_ax", "mpu1_ay", "mpu1_az"],
-            labels: ["Ax", "Ay", "Az"],
             colors: ["rgba(255, 99, 132, 0.8)", "rgba(54, 162, 235, 0.8)", "rgba(255, 205, 86, 0.8)"],
             borderColors: ["rgb(255, 99, 132)", "rgb(54, 162, 235)", "rgb(255, 205, 86)"]
           },
           {
             id: "mpu1Gyro",
             fields: ["mpu1_gx", "mpu1_gy", "mpu1_gz"],
-            labels: ["Gx", "Gy", "Gz"],
             colors: ["rgba(75, 192, 192, 0.8)", "rgba(153, 102, 255, 0.8)", "rgba(255, 159, 64, 0.8)"],
             borderColors: ["rgb(75, 192, 192)", "rgb(153, 102, 255)", "rgb(255, 159, 64)"]
           },
           {
             id: "mpu2Accel",
             fields: ["mpu2_ax", "mpu2_ay", "mpu2_az"],
-            labels: ["Ax", "Ay", "Az"],
             colors: ["rgba(255, 99, 132, 0.6)", "rgba(54, 162, 235, 0.6)", "rgba(255, 205, 86, 0.6)"],
             borderColors: ["rgb(255, 99, 132)", "rgb(54, 162, 235)", "rgb(255, 205, 86)"]
           },
           {
             id: "mpu2Gyro",
             fields: ["mpu2_gx", "mpu2_gy", "mpu2_gz"],
-            labels: ["Gx", "Gy", "Gz"],
             colors: ["rgba(75, 192, 192, 0.6)", "rgba(153, 102, 255, 0.6)", "rgba(255, 159, 64, 0.6)"],
             borderColors: ["rgb(75, 192, 192)", "rgb(153, 102, 255)", "rgb(255, 159, 64)"]
           }
@@ -1078,7 +1385,7 @@
 
         chartConfigs.forEach(config => {
           const datasets = config.fields.map((field, i) => ({
-            label: config.labels[i],
+            label: field.toUpperCase(),
             data: chartData.map(d => parseFloat(d[field] || 0)),
             borderColor: config.borderColors[i],
             backgroundColor: config.colors[i],
@@ -1097,7 +1404,6 @@
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false,  // Disable animations for better performance
                 interaction: {
                   intersect: false,
                   mode: 'index'
@@ -1126,100 +1432,45 @@
             charts[config.id].data.datasets.forEach((ds, i) => {
               ds.data = chartData.map(d => parseFloat(d[config.fields[i]] || 0));
             });
-            charts[config.id].update('none');  // Update without animation
+            charts[config.id].update('none');
           }
         });
-        
-      } catch (error) {
-        console.error('Error loading graph data:', error);
-        showError('graph', `Failed to load charts: ${error.message}. Please check your API connection.`);
-      } finally {
-        isLoadingGraph = false;
+      } catch (err) {
+        console.error("Error updating graphs:", err);
       }
     }
 
-    function showPage(event, pageId) {
-      event.preventDefault();
-      
-      document.querySelectorAll('.page-section').forEach(page => {
-        page.classList.remove('active');
-      });
-      
-      document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-      });
-      
-      const targetPage = pageId + '-page';
-      document.getElementById(targetPage).classList.add('active');
-      
-      event.currentTarget.classList.add('active');
-      
-      // Load data when switching to specific pages
-      if (pageId === 'log') {
-        loadLogData(currentLogPage);
-      } else if (pageId === 'inference') {
-        updateInferenceDisplay();
-      } else if (pageId === 'graph') {
-        loadGraphData();
-      }
-    }
-
-    // Keep-alive ping to prevent Render cold starts
-    async function keepAlive() {
-      try {
-        await fetch(`${apiBase}/ping`);
-        console.log('Keep-alive ping sent');
-      } catch (e) {
-        console.log('Keep-alive ping failed:', e);
-      }
-    }
-
-    // Initial load
-    console.log('Initializing dashboard...');
+    fetchAndUpdate();
+    updateGraphs();
+    updateDashboardStats();
     updateInferenceDisplay();
-    
-    // Keep-alive every 5 minutes to prevent cold starts
-    setInterval(keepAlive, 5 * 60 * 1000);
 
-    // Adaptive polling with dynamic interval
-    let pollIntervalId = null;
-    
-    function startPolling() {
-      if (pollIntervalId) clearInterval(pollIntervalId);
-      
-      pollIntervalId = setInterval(() => {
-        const activePage = document.querySelector('.page-section.active');
-        
-        // Only update if not already loading and not too many concurrent requests
-        if (pendingRequests < MAX_CONCURRENT_REQUESTS) {
-          if (activePage.id === 'inference-page') {
-            updateInferenceDisplay();
-          } else if (activePage.id === 'graph-page') {
-            loadGraphData();
-          }
-        } else {
-          console.log('Skipping update - too many pending requests');
-        }
-      }, currentPollInterval);
-    }
-    
-    startPolling();
-    
-    // Adjust polling interval dynamically
     setInterval(() => {
-      if (pollIntervalId) clearInterval(pollIntervalId);
-      startPolling();
-      console.log(`Polling interval adjusted to: ${currentPollInterval}ms`);
-    }, 10000);  // Re-evaluate every 10 seconds
-    
-    // Pause polling when tab is not visible
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        console.log('Tab hidden - pausing polling');
-        if (pollIntervalId) clearInterval(pollIntervalId);
-      } else {
-        console.log('Tab visible - resuming polling');
-        startPolling();
+      fetchAndUpdate();
+      
+      if (document.getElementById('graph-page').classList.contains('active')) {
+        updateGraphs();
+      }
+      
+      if (document.getElementById('inference-page').classList.contains('active')) {
+        updateInferenceDisplay();
+      }
+      
+      // Always update inference in background to check vibration levels
+      updateInferenceDisplay();
+    }, 2000);
+
+    // Close alert when clicking outside
+    document.getElementById('alert-overlay').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeAlert();
+      }
+    });
+
+    // Keyboard shortcut to close alert
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeAlert();
       }
     });
   </script>
