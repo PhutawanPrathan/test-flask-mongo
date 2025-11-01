@@ -1006,30 +1006,10 @@
     }
 
     async function updateInferenceDisplay() {
-      // Prevent multiple simultaneous updates
-      if (isUpdating) return;
-      isUpdating = true;
-      
       try {
-        // Use cached data if available and fresh
-        const now = Date.now();
-        if (inferenceCache && (now - inferenceCacheTime) < CACHE_DURATION) {
-          renderInferenceTable();
-          checkVibrationLevel(inferenceCache.current_pattern.prediction);
-          isUpdating = false;
-          return;
-        }
-        
-        // Parallel fetch for better performance
-        const [statsRes, currentRes, historyRes] = await Promise.all([
-          fetch(`${apiBase}/inference/stats`),
-          fetch(`${apiBase}/inference/current`),
-          fetch(`${apiBase}/inference/latest?limit=50`) // Reduced from 100 to 50 for faster loading
-        ]);
-        
+        const statsRes = await fetch(`${apiBase}/inference/stats`);
         const stats = await statsRes.json();
         
-        // Update stats cards
         document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
         document.getElementById('avg-inference-time').textContent = 
           (stats.average_inference_time_ms || 0).toFixed(1) + ' ms';
@@ -1056,11 +1036,9 @@
           }
         }
         
-        // Update current pattern
+        const currentRes = await fetch(`${apiBase}/inference/current`);
         if (currentRes.ok) {
           const current = await currentRes.json();
-          inferenceCache = current; // Cache the current data
-          inferenceCacheTime = now;
           
           document.getElementById('current-pattern-name').textContent = 
             current.current_pattern.prediction || '---';
@@ -1079,16 +1057,18 @@
           checkVibrationLevel(current.current_pattern.prediction);
         }
         
-        // Update inference history
+        const historyRes = await fetch(`${apiBase}/inference/latest?limit=100`);
         const history = await historyRes.json();
-        allInferenceData = history.reverse();
+        
+        // Store all inference data for pagination
+        allInferenceData = history.reverse(); // Reverse to show latest first
         maxInferencePages = Math.ceil(allInferenceData.length / inferenceRowsPerPage);
+        
+        // Render the current page
         renderInferenceTable();
         
       } catch (error) {
         console.error('Error updating inference display:', error);
-      } finally {
-        isUpdating = false;
       }
     }
 
@@ -1280,21 +1260,15 @@
 
     async function updateGraphs() {
       try {
-        // Use existing data if available instead of fetching again
-        let chartData;
-        if (allData.length > 0) {
-          chartData = allData.slice(0, 30).reverse(); // Reduced from 50 to 30 points
-        } else {
-          const res = await fetch(`${apiBase}/latest`);
-          const data = await res.json();
-          chartData = data.slice(0, 30).reverse();
-        }
+        const res = await fetch(`${apiBase}/latest`);
+        const data = await res.json();
 
-        if (!chartData || chartData.length === 0) {
+        if (!data || data.length === 0) {
           console.log('No data available for charts');
           return;
         }
 
+        const chartData = data.slice(0, 50).reverse();
         const labels = chartData.map(d => {
           try {
             const date = new Date(d.timestamp);
@@ -1343,8 +1317,8 @@
             borderWidth: 2,
             fill: false,
             tension: 0.4,
-            pointRadius: 1, // Reduced from 2
-            pointHoverRadius: 3 // Reduced from 4
+            pointRadius: 2,
+            pointHoverRadius: 4
           }));
 
           if (!charts[config.id]) {
@@ -1355,7 +1329,6 @@
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false, // Disable animation for faster rendering
                 interaction: {
                   intersect: false,
                   mode: 'index'
@@ -1392,35 +1365,24 @@
       }
     }
 
-    // Initial load
     fetchAndUpdate();
+    updateGraphs();
     updateInferenceDisplay();
 
-    // Optimized update intervals
     setInterval(() => {
-      const now = Date.now();
-      
-      // Throttle updates to prevent overload
-      if (now - lastUpdateTime < UPDATE_INTERVAL) {
-        return;
-      }
-      lastUpdateTime = now;
-      
-      // Only fetch sensor data
       fetchAndUpdate();
       
-      // Update active page content
       if (document.getElementById('graph-page').classList.contains('active')) {
         updateGraphs();
       }
       
       if (document.getElementById('inference-page').classList.contains('active')) {
         updateInferenceDisplay();
-      } else {
-        // Always update inference in background to check vibration levels (but use cache)
-        updateInferenceDisplay();
       }
-    }, UPDATE_INTERVAL);
+      
+      // Always update inference in background to check vibration levels
+      updateInferenceDisplay();
+    }, 2000);
 
     // Close alert when clicking outside
     document.getElementById('alert-overlay').addEventListener('click', function(e) {
