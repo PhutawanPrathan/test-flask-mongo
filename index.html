@@ -827,23 +827,6 @@
     </main>
   </div>
 
-  <!-- Vibration Alert Modal -->
-  <div id="alert-overlay" class="alert-overlay">
-    <div class="alert-modal">
-      <div class="alert-icon" id="alert-icon">⚠️</div>
-      <div class="alert-title" id="alert-title">Vibration Alert</div>
-      <div class="alert-level" id="alert-level-badge">Level 0</div>
-      <div class="alert-message" id="alert-message">Vibration detected</div>
-      <button class="alert-close" onclick="closeAlert()">Acknowledge</button>
-    </div>
-  </div>
-
-  <!-- Vibration Level Indicator -->
-  <div id="vibration-indicator" class="vibration-indicator">
-    <div class="vib-level">Current Vibration</div>
-    <div class="vib-value" id="vib-display">Idle</div>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const apiBase = "https://test-flask-mongo.onrender.com";
@@ -852,113 +835,6 @@
     const rowsPerPage = 10;
     let maxPages = 1;
     let charts = {};
-    let lastVibrationLevel = -1;
-    let alertShown = false;
-
-    const vibrationLevels = {
-      0: { name: 'Idle', icon: '😴', message: 'System is idle - no significant vibration detected', color: 'gray' },
-      1: { name: 'Creep', icon: '🟢', message: 'Minor creep movement detected - monitoring situation', color: 'blue' },
-      2: { name: 'Micro Tremor', icon: '🟡', message: 'Micro tremors detected - increased monitoring recommended', color: 'yellow' },
-      3: { name: 'Sudden Slip', icon: '🟠', message: 'Sudden slip detected - attention required!', color: 'orange' },
-      4: { name: 'Debris Flow', icon: '🔴', message: 'DEBRIS FLOW DETECTED - IMMEDIATE ACTION REQUIRED!', color: 'red' },
-      5: { name: 'Intermittent', icon: '🔴', message: 'CRITICAL: Intermittent activity - EVACUATE IF NECESSARY!', color: 'darkred' }
-    };
-
-    function showVibrationAlert(level) {
-      const info = vibrationLevels[level];
-      const overlay = document.getElementById('alert-overlay');
-      const modal = overlay.querySelector('.alert-modal');
-      
-      // Update overlay class for sizing
-      overlay.className = `alert-overlay active alert-level-${level}`;
-      
-      // Update modal content
-      document.getElementById('alert-icon').textContent = info.icon;
-      document.getElementById('alert-title').textContent = `⚠️ ${info.name} Alert!`;
-      document.getElementById('alert-level-badge').textContent = `Level ${level}: ${info.name}`;
-      document.getElementById('alert-level-badge').className = `alert-level alert-color-${level}`;
-      document.getElementById('alert-message').textContent = info.message;
-      
-      // Update modal border
-      modal.className = `alert-modal alert-border-${level}`;
-      
-      // Play alert sound (optional - browser dependent)
-      if (level >= 3) {
-        playAlertSound();
-      }
-      
-      alertShown = true;
-    }
-
-    function closeAlert() {
-      document.getElementById('alert-overlay').classList.remove('active');
-      alertShown = false;
-    }
-
-    function updateVibrationIndicator(level) {
-      const indicator = document.getElementById('vibration-indicator');
-      const display = document.getElementById('vib-display');
-      const info = vibrationLevels[level];
-      
-      display.textContent = `${info.icon} ${info.name}`;
-      display.className = `vib-value alert-color-${level}`;
-      
-      if (level > 0) {
-        indicator.classList.add('active');
-      } else {
-        indicator.classList.remove('active');
-      }
-    }
-
-    function playAlertSound() {
-      // Create a simple beep sound
-      try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-      } catch (e) {
-        console.log('Audio not supported');
-      }
-    }
-
-    function checkVibrationLevel(currentPattern) {
-      // Map pattern prediction to vibration level
-      let level = 0;
-      
-      if (typeof currentPattern === 'string') {
-        const pattern = currentPattern.toLowerCase();
-        if (pattern.includes('idle') || pattern === '0') level = 0;
-        else if (pattern.includes('creep') || pattern === '1') level = 1;
-        else if (pattern.includes('micro') || pattern.includes('tremor') || pattern === '2') level = 2;
-        else if (pattern.includes('sudden') || pattern.includes('slip') || pattern === '3') level = 3;
-        else if (pattern.includes('debris') || pattern.includes('flow') || pattern === '4') level = 4;
-        else if (pattern.includes('intermittent') || pattern === '5') level = 5;
-      } else if (typeof currentPattern === 'number') {
-        level = currentPattern;
-      }
-      
-      // Update indicator
-      updateVibrationIndicator(level);
-      
-      // Show alert if level increased and >= 2
-      if (level !== lastVibrationLevel && level >= 2 && !alertShown) {
-        showVibrationAlert(level);
-      }
-      
-      lastVibrationLevel = level;
-    }
 
     function isNewEntry(entry) {
       return !allData.some(d => d.timestamp === entry.timestamp);
@@ -1061,9 +937,6 @@
           
           displayProbabilities('current-probabilities', current.current_pattern.probabilities);
           displayProbabilities('next-probabilities', current.next_pattern.probabilities);
-          
-          // Check vibration level based on current pattern
-          checkVibrationLevel(current.current_pattern.prediction);
         }
         
         const historyRes = await fetch(`${apiBase}/inference/latest?limit=10`);
@@ -1357,24 +1230,7 @@
       if (document.getElementById('inference-page').classList.contains('active')) {
         updateInferenceDisplay();
       }
-      
-      // Always update inference in background to check vibration levels
-      updateInferenceDisplay();
     }, 2000);
-
-    // Close alert when clicking outside
-    document.getElementById('alert-overlay').addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeAlert();
-      }
-    });
-
-    // Keyboard shortcut to close alert
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closeAlert();
-      }
-    });
   </script>
 </body>
 </html>
