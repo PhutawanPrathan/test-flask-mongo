@@ -594,52 +594,7 @@
     </nav>
 
     <main class="main-content">
-      <section id="dashboard-page" class="page-section active">
-        <div class="page-header">
-          <h2>📊 Sensor Dashboard</h2>
-          <p>Real-time monitoring of MPU1 and MPU2 sensors</p>
-        </div>
-        
-        <div class="status-cards">
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">🎯</div>
-              <div class="card-title">MPU1 Status</div>
-            </div>
-            <div class="card-value" id="mpu1-status">Online</div>
-            <div class="card-status status-online" id="mpu1-indicator">Active</div>
-          </div>
-          
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">🎯</div>
-              <div class="card-title">MPU2 Status</div>
-            </div>
-            <div class="card-value" id="mpu2-status">Online</div>
-            <div class="card-status status-online" id="mpu2-indicator">Active</div>
-          </div>
-          
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">📊</div>
-              <div class="card-title">Data Points</div>
-            </div>
-            <div class="card-value" id="data-count">0</div>
-            <div class="card-status status-online">Total Records</div>
-          </div>
-          
-          <div class="status-card">
-            <div class="card-header">
-              <div class="card-icon">⏱️</div>
-              <div class="card-title">Last Update</div>
-            </div>
-            <div class="card-value" id="last-update" style="font-size: 1.2rem;">--:--</div>
-            <div class="card-status status-online">Live</div>
-          </div>
-        </div>
-      </section>
-
-      <section id="inference-page" class="page-section">
+      <section id="inference-page" class="page-section active">
         <div class="page-header">
           <h2>🤖 AI Pattern Recognition</h2>
           <p>Real-time robot behavior prediction and analysis</p>
@@ -861,6 +816,14 @@
     let currentInferencePage = 1;
     const inferenceRowsPerPage = 10;
     let maxInferencePages = 1;
+    
+    // Cache and optimization
+    let isUpdating = false;
+    let lastUpdateTime = 0;
+    const UPDATE_INTERVAL = 3000; // 3 seconds between updates
+    let inferenceCache = null;
+    let inferenceCacheTime = 0;
+    const CACHE_DURATION = 2000; // Cache for 2 seconds
 
     const vibrationLevels = {
       0: { name: 'Idle', icon: '😴', message: 'System is idle - no significant vibration detected', color: 'gray' },
@@ -1035,45 +998,7 @@
         const statusRes = await fetch(`${apiBase}/status`);
         const status = await statusRes.json();
         
-        if (status.total_records) {
-          document.getElementById('data-count').textContent = status.total_records;
-        } else {
-          document.getElementById('data-count').textContent = allData.length;
-        }
-        
-        const mpu1Status = document.getElementById('mpu1-status');
-        const mpu1Indicator = document.getElementById('mpu1-indicator');
-        const mpu2Status = document.getElementById('mpu2-status');
-        const mpu2Indicator = document.getElementById('mpu2-indicator');
-        
-        if (status.mpu1_online) {
-          mpu1Status.textContent = 'Online';
-          mpu1Indicator.textContent = 'Active';
-          mpu1Indicator.className = 'card-status status-online';
-        } else {
-          mpu1Status.textContent = 'Offline';
-          mpu1Indicator.textContent = 'Inactive';
-          mpu1Indicator.className = 'card-status status-offline';
-        }
-        
-        if (status.mpu2_online) {
-          mpu2Status.textContent = 'Online';
-          mpu2Indicator.textContent = 'Active';
-          mpu2Indicator.className = 'card-status status-online';
-        } else {
-          mpu2Status.textContent = 'Offline';
-          mpu2Indicator.textContent = 'Inactive';
-          mpu2Indicator.className = 'card-status status-offline';
-        }
-        
-        if (status.last_update) {
-          try {
-            const lastTime = new Date(status.last_update).toLocaleTimeString();
-            document.getElementById('last-update').textContent = lastTime;
-          } catch (e) {
-            document.getElementById('last-update').textContent = 'Error';
-          }
-        }
+        // Dashboard page removed - stats no longer displayed
         
       } catch (error) {
         console.error('Error updating dashboard stats:', error);
@@ -1081,10 +1006,30 @@
     }
 
     async function updateInferenceDisplay() {
+      // Prevent multiple simultaneous updates
+      if (isUpdating) return;
+      isUpdating = true;
+      
       try {
-        const statsRes = await fetch(`${apiBase}/inference/stats`);
+        // Use cached data if available and fresh
+        const now = Date.now();
+        if (inferenceCache && (now - inferenceCacheTime) < CACHE_DURATION) {
+          renderInferenceTable();
+          checkVibrationLevel(inferenceCache.current_pattern.prediction);
+          isUpdating = false;
+          return;
+        }
+        
+        // Parallel fetch for better performance
+        const [statsRes, currentRes, historyRes] = await Promise.all([
+          fetch(`${apiBase}/inference/stats`),
+          fetch(`${apiBase}/inference/current`),
+          fetch(`${apiBase}/inference/latest?limit=50`) // Reduced from 100 to 50 for faster loading
+        ]);
+        
         const stats = await statsRes.json();
         
+        // Update stats cards
         document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
         document.getElementById('avg-inference-time').textContent = 
           (stats.average_inference_time_ms || 0).toFixed(1) + ' ms';
@@ -1111,9 +1056,11 @@
           }
         }
         
-        const currentRes = await fetch(`${apiBase}/inference/current`);
+        // Update current pattern
         if (currentRes.ok) {
           const current = await currentRes.json();
+          inferenceCache = current; // Cache the current data
+          inferenceCacheTime = now;
           
           document.getElementById('current-pattern-name').textContent = 
             current.current_pattern.prediction || '---';
@@ -1132,18 +1079,16 @@
           checkVibrationLevel(current.current_pattern.prediction);
         }
         
-        const historyRes = await fetch(`${apiBase}/inference/latest?limit=100`);
+        // Update inference history
         const history = await historyRes.json();
-        
-        // Store all inference data for pagination
-        allInferenceData = history.reverse(); // Reverse to show latest first
+        allInferenceData = history.reverse();
         maxInferencePages = Math.ceil(allInferenceData.length / inferenceRowsPerPage);
-        
-        // Render the current page
         renderInferenceTable();
         
       } catch (error) {
         console.error('Error updating inference display:', error);
+      } finally {
+        isUpdating = false;
       }
     }
 
@@ -1319,7 +1264,7 @@
         link.classList.remove('active');
       });
       
-      const targetPage = pageId === 'dashboard' ? 'dashboard-page' : pageId + '-page';
+      const targetPage = pageId + '-page';
       document.getElementById(targetPage).classList.add('active');
       
       event.currentTarget.classList.add('active');
@@ -1335,15 +1280,21 @@
 
     async function updateGraphs() {
       try {
-        const res = await fetch(`${apiBase}/latest`);
-        const data = await res.json();
+        // Use existing data if available instead of fetching again
+        let chartData;
+        if (allData.length > 0) {
+          chartData = allData.slice(0, 30).reverse(); // Reduced from 50 to 30 points
+        } else {
+          const res = await fetch(`${apiBase}/latest`);
+          const data = await res.json();
+          chartData = data.slice(0, 30).reverse();
+        }
 
-        if (!data || data.length === 0) {
+        if (!chartData || chartData.length === 0) {
           console.log('No data available for charts');
           return;
         }
 
-        const chartData = data.slice(0, 50).reverse();
         const labels = chartData.map(d => {
           try {
             const date = new Date(d.timestamp);
@@ -1392,8 +1343,8 @@
             borderWidth: 2,
             fill: false,
             tension: 0.4,
-            pointRadius: 2,
-            pointHoverRadius: 4
+            pointRadius: 1, // Reduced from 2
+            pointHoverRadius: 3 // Reduced from 4
           }));
 
           if (!charts[config.id]) {
@@ -1404,6 +1355,7 @@
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false, // Disable animation for faster rendering
                 interaction: {
                   intersect: false,
                   mode: 'index'
@@ -1440,25 +1392,35 @@
       }
     }
 
+    // Initial load
     fetchAndUpdate();
-    updateGraphs();
-    updateDashboardStats();
     updateInferenceDisplay();
 
+    // Optimized update intervals
     setInterval(() => {
+      const now = Date.now();
+      
+      // Throttle updates to prevent overload
+      if (now - lastUpdateTime < UPDATE_INTERVAL) {
+        return;
+      }
+      lastUpdateTime = now;
+      
+      // Only fetch sensor data
       fetchAndUpdate();
       
+      // Update active page content
       if (document.getElementById('graph-page').classList.contains('active')) {
         updateGraphs();
       }
       
       if (document.getElementById('inference-page').classList.contains('active')) {
         updateInferenceDisplay();
+      } else {
+        // Always update inference in background to check vibration levels (but use cache)
+        updateInferenceDisplay();
       }
-      
-      // Always update inference in background to check vibration levels
-      updateInferenceDisplay();
-    }, 2000);
+    }, UPDATE_INTERVAL);
 
     // Close alert when clicking outside
     document.getElementById('alert-overlay').addEventListener('click', function(e) {
