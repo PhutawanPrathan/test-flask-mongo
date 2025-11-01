@@ -854,6 +854,12 @@
     let charts = {};
     let lastVibrationLevel = -1;
     let alertShown = false;
+    
+    // Inference history pagination
+    let allInferenceData = [];
+    let currentInferencePage = 1;
+    const inferenceRowsPerPage = 10;
+    let maxInferencePages = 1;
 
     const vibrationLevels = {
       0: { name: 'Idle', icon: '😴', message: 'System is idle - no significant vibration detected', color: 'gray' },
@@ -893,19 +899,9 @@
             setTimeout(() => playSingleBeep(ctx, 500, 0.3, 0.2), 200);
             break;
           case 3:
-            // Sudden Slip - urgent triple beep
-            playSingleBeep(ctx, 600, 0.4, 0.15);
-            setTimeout(() => playSingleBeep(ctx, 600, 0.4, 0.15), 150);
-            setTimeout(() => playSingleBeep(ctx, 600, 0.4, 0.15), 300);
-            break;
           case 4:
-            // Debris Flow - rapid beeping (5 times)
-            for (let i = 0; i < 5; i++) {
-              setTimeout(() => playSingleBeep(ctx, 800, 0.5, 0.1), i * 120);
-            }
-            break;
           case 5:
-            // Intermittent - continuous alarm (siren effect)
+            // Levels 3, 4, 5 - emergency siren sound
             playSirenSound(ctx);
             break;
         }
@@ -1017,9 +1013,13 @@
       // Update indicator
       updateVibrationIndicator(level);
       
-      // Show alert if level increased and >= 2
-      if (level !== lastVibrationLevel && level >= 2 && !alertShown) {
+      // Show alert if level changed and >= 2
+      if (level !== lastVibrationLevel && level >= 2) {
         showVibrationAlert(level);
+        alertShown = false; // Reset to allow next alert
+      } else if (level !== lastVibrationLevel && level < 2) {
+        closeAlert(); // Auto-close if level drops below 2
+        alertShown = false;
       }
       
       lastVibrationLevel = level;
@@ -1131,37 +1131,69 @@
           checkVibrationLevel(current.current_pattern.prediction);
         }
         
-        const historyRes = await fetch(`${apiBase}/inference/latest?limit=10`);
+        const historyRes = await fetch(`${apiBase}/inference/latest?limit=100`);
         const history = await historyRes.json();
         
-        const tbody = document.getElementById('inference-table-body');
-        tbody.innerHTML = '';
+        // Store all inference data for pagination
+        allInferenceData = history.reverse(); // Reverse to show latest first
+        maxInferencePages = Math.ceil(allInferenceData.length / inferenceRowsPerPage);
         
-        history.forEach(item => {
-          const tr = document.createElement('tr');
-          let displayTime = '--:--';
-          try {
-            const date = new Date(item.created_at);
-            if (!isNaN(date.getTime())) {
-              displayTime = date.toLocaleString();
-            }
-          } catch (e) {
-            console.error('Error parsing timestamp:', item.created_at);
-          }
-          
-          tr.innerHTML = `
-            <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
-            <td>${item.current_pattern.prediction}</td>
-            <td>${item.current_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.next_pattern.prediction}</td>
-            <td>${item.next_pattern.confidence.toFixed(1)}%</td>
-            <td>${item.inference_time_ms.toFixed(2)} ms</td>
-          `;
-          tbody.appendChild(tr);
-        });
+        // Render the current page
+        renderInferenceTable();
         
       } catch (error) {
         console.error('Error updating inference display:', error);
+      }
+    }
+
+    function renderInferenceTable() {
+      const tbody = document.getElementById('inference-table-body');
+      tbody.innerHTML = '';
+      
+      if (allInferenceData.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="6" style="text-align: center; padding: 2rem; color: #999;">No inference data available yet...</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+      
+      const start = (currentInferencePage - 1) * inferenceRowsPerPage;
+      const pageData = allInferenceData.slice(start, start + inferenceRowsPerPage);
+      
+      pageData.forEach(item => {
+        const tr = document.createElement('tr');
+        let displayTime = '--:--';
+        try {
+          const date = new Date(item.created_at);
+          if (!isNaN(date.getTime())) {
+            displayTime = date.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error parsing timestamp:', item.created_at);
+        }
+        
+        tr.innerHTML = `
+          <td style="font-weight: 500; color: #667eea;">${displayTime}</td>
+          <td>${item.current_pattern.prediction}</td>
+          <td>${item.current_pattern.confidence.toFixed(1)}%</td>
+          <td>${item.next_pattern.prediction}</td>
+          <td>${item.next_pattern.confidence.toFixed(1)}%</td>
+          <td>${item.inference_time_ms.toFixed(2)} ms</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+      // Update pagination info
+      document.getElementById('inference-page-number').textContent = `Page ${currentInferencePage} of ${maxInferencePages}`;
+      document.getElementById('inference-prev-btn').disabled = currentInferencePage === 1;
+      document.getElementById('inference-next-btn').disabled = currentInferencePage === maxInferencePages || allInferenceData.length === 0;
+    }
+
+    function changeInferencePage(delta) {
+      const newPage = currentInferencePage + delta;
+      if (newPage >= 1 && newPage <= maxInferencePages) {
+        currentInferencePage = newPage;
+        renderInferenceTable();
       }
     }
 
