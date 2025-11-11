@@ -473,6 +473,7 @@
       align-items: center;
       gap: 1rem;
       margin-top: 2rem;
+      flex-wrap: wrap;
     }
 
     .pagination button {
@@ -486,7 +487,7 @@
       transition: all 0.3s ease;
     }
 
-    .pagination button:hover {
+    .pagination button:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
     }
@@ -498,11 +499,61 @@
       box-shadow: none;
     }
 
+    .pagination .page-jump {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .pagination input[type="number"] {
+      width: 70px;
+      padding: 0.5rem;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .pagination .page-button {
+      min-width: 45px;
+      padding: 0.5rem;
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+
+    .pagination .page-button.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .pagination .page-button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
     .page-info {
       padding: 0.75rem 1.5rem;
       background: rgba(255, 255, 255, 0.9);
       border-radius: 10px;
       font-weight: 500;
+    }
+
+    .page-size-selector {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .page-size-selector select {
+      padding: 0.5rem 1rem;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+      background: white;
+      color: #667eea;
+      font-weight: 500;
+      cursor: pointer;
     }
 
     .charts-grid {
@@ -723,11 +774,32 @@
           </div>
           
           <div class="pagination">
-            <button onclick="changePage(-1)" id="prev-btn">← Previous</button>
+            <button onclick="goToPage(1)" id="first-btn" title="First Page">⏮️ First</button>
+            <button onclick="changePage(-1)" id="prev-btn" title="Previous Page">← Prev</button>
+            
+            <div id="page-buttons" style="display: flex; gap: 0.5rem;"></div>
+            
+            <button onclick="changePage(1)" id="next-btn" title="Next Page">Next →</button>
+            <button onclick="goToPage(maxPages)" id="last-btn" title="Last Page">Last ⏭️</button>
+            
             <div class="page-info">
               <span id="page-number">Page 1 of 1</span>
             </div>
-            <button onclick="changePage(1)" id="next-btn">Next →</button>
+            
+            <div class="page-jump">
+              <span style="color: #667eea; font-weight: 500;">Go to:</span>
+              <input type="number" id="page-jump-input" min="1" value="1" onchange="jumpToPage()">
+            </div>
+            
+            <div class="page-size-selector">
+              <span style="color: #667eea; font-weight: 500;">Show:</span>
+              <select id="page-size-select" onchange="changePageSize()">
+                <option value="10" selected>10 rows</option>
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>
@@ -796,7 +868,7 @@
 
   <!-- Vibration Level Indicator -->
   <div id="vibration-indicator" class="vibration-indicator">
-    <div class="vib-level">Current Vibration</div>
+    <div class="vib-level">Predicted Next Pattern</div>
     <div class="vib-value" id="vib-display">Idle</div>
   </div>
 
@@ -805,7 +877,7 @@
     const apiBase = "https://test-flask-mongo.onrender.com";
     let allData = [];
     let currentPage = 1;
-    const rowsPerPage = 10;
+    let rowsPerPage = 10;
     let maxPages = 1;
     let charts = {};
     let lastVibrationLevel = -1;
@@ -824,14 +896,63 @@
     let inferenceCache = null;
     let inferenceCacheTime = 0;
     const CACHE_DURATION = 2000; // Cache for 2 seconds
+    
+    // Loading tracking
+    let loadStartTime = Date.now();
+    let loadingTimer = null;
+    
+    // Total predictions tracking (from first load)
+    let initialTotalPredictions = null;
+
+    // Update loading status
+    function updateLoadingStatus(message) {
+      const statusEl = document.getElementById('loading-status');
+      if (statusEl) {
+        statusEl.textContent = message;
+      }
+    }
+
+    function updateLoadingTimer() {
+      const timerEl = document.getElementById('loading-timer');
+      if (timerEl && loadingTimer) {
+        const elapsed = Math.round((Date.now() - loadStartTime) / 1000);
+        timerEl.textContent = `Elapsed: ${elapsed}s`;
+        
+        // Show additional info after 5 seconds
+        if (elapsed > 5) {
+          updateLoadingStatus('⏳ Render.com free tier may take 30-60s to wake up...');
+        }
+        if (elapsed > 15) {
+          updateLoadingStatus('⏳ Still waiting... Free servers sleep after inactivity');
+        }
+      }
+    }
+
+    function hideLoadingScreen() {
+      const loadingScreen = document.getElementById('loading-screen');
+      if (loadingScreen) {
+        clearInterval(loadingTimer);
+        loadingScreen.classList.add('hidden');
+        setTimeout(() => {
+          loadingScreen.style.display = 'none';
+        }, 500);
+        
+        const totalTime = Math.round((Date.now() - loadStartTime) / 1000);
+        console.log(`✅ Loaded in ${totalTime}s`);
+      }
+    }
+
+    // Start loading timer
+    loadingTimer = setInterval(updateLoadingTimer, 1000);
+    updateLoadingTimer();
 
     const vibrationLevels = {
-      0: { name: 'Idle', icon: '😴', message: 'System is idle - no significant vibration detected', color: 'gray' },
-      1: { name: 'Creep', icon: '🟢', message: 'Minor creep movement detected - monitoring situation', color: 'blue' },
-      2: { name: 'Micro Tremor', icon: '🟡', message: 'Micro tremors detected - increased monitoring recommended', color: 'yellow' },
-      3: { name: 'Sudden Slip', icon: '🟠', message: 'Sudden slip detected - attention required!', color: 'orange' },
-      4: { name: 'Debris Flow', icon: '🔴', message: 'DEBRIS FLOW DETECTED - IMMEDIATE ACTION REQUIRED!', color: 'red' },
-      5: { name: 'Intermittent', icon: '🔴', message: 'CRITICAL: Intermittent activity - EVACUATE IF NECESSARY!', color: 'darkred' }
+      0: { name: 'Idle', icon: '😴', message: 'System predicts idle state - no significant vibration expected', color: 'gray' },
+      1: { name: 'Creep', icon: '🟢', message: 'Predicted: Minor creep movement - monitoring situation', color: 'blue' },
+      2: { name: 'Micro Tremor', icon: '🟡', message: 'Predicted: Micro tremors - increased monitoring recommended', color: 'yellow' },
+      3: { name: 'Sudden Slip', icon: '🟠', message: 'WARNING: Sudden slip predicted - attention required!', color: 'orange' },
+      4: { name: 'Debris Flow', icon: '🔴', message: 'ALERT: DEBRIS FLOW PREDICTED - PREPARE IMMEDIATE ACTION!', color: 'red' },
+      5: { name: 'Intermittent', icon: '🔴', message: 'CRITICAL: Intermittent activity predicted - PREPARE TO EVACUATE!', color: 'darkred' }
     };
 
     // Audio context for sound generation
@@ -924,8 +1045,8 @@
       
       // Update modal content
       document.getElementById('alert-icon').textContent = info.icon;
-      document.getElementById('alert-title').textContent = `⚠️ ${info.name} Alert!`;
-      document.getElementById('alert-level-badge').textContent = `Level ${level}: ${info.name}`;
+      document.getElementById('alert-title').textContent = `⚠️ Prediction Alert: ${info.name}!`;
+      document.getElementById('alert-level-badge').textContent = `Predicted Level ${level}: ${info.name}`;
       document.getElementById('alert-level-badge').className = `alert-level alert-color-${level}`;
       document.getElementById('alert-message').textContent = info.message;
       
@@ -948,7 +1069,7 @@
       const display = document.getElementById('vib-display');
       const info = vibrationLevels[level];
       
-      display.textContent = `${info.icon} ${info.name}`;
+      display.textContent = `${info.icon} Next: ${info.name}`;
       display.className = `vib-value alert-color-${level}`;
       
       if (level > 0) {
@@ -958,20 +1079,20 @@
       }
     }
 
-    function checkVibrationLevel(currentPattern) {
-      // Map pattern prediction to vibration level
+    function checkVibrationLevel(nextPattern) {
+      // Map NEXT pattern prediction to vibration level
       let level = 0;
       
-      if (typeof currentPattern === 'string') {
-        const pattern = currentPattern.toLowerCase();
+      if (typeof nextPattern === 'string') {
+        const pattern = nextPattern.toLowerCase();
         if (pattern.includes('idle') || pattern === '0') level = 0;
         else if (pattern.includes('creep') || pattern === '1') level = 1;
         else if (pattern.includes('micro') || pattern.includes('tremor') || pattern === '2') level = 2;
         else if (pattern.includes('sudden') || pattern.includes('slip') || pattern === '3') level = 3;
         else if (pattern.includes('debris') || pattern.includes('flow') || pattern === '4') level = 4;
         else if (pattern.includes('intermittent') || pattern === '5') level = 5;
-      } else if (typeof currentPattern === 'number') {
-        level = currentPattern;
+      } else if (typeof nextPattern === 'number') {
+        level = nextPattern;
       }
       
       // Update indicator
@@ -1006,11 +1127,44 @@
     }
 
     async function updateInferenceDisplay() {
+      // Prevent multiple simultaneous updates
+      if (isUpdating) return;
+      isUpdating = true;
+      
       try {
-        const statsRes = await fetch(`${apiBase}/inference/stats`);
+        updateLoadingStatus('🤖 Loading AI inference data...');
+        
+        // Use cached data if available and fresh
+        const now = Date.now();
+        if (inferenceCache && (now - inferenceCacheTime) < CACHE_DURATION) {
+          renderInferenceTable();
+          checkVibrationLevel(inferenceCache.next_pattern.prediction); // Use NEXT pattern
+          isUpdating = false;
+          hideLoadingScreen();
+          return;
+        }
+        
+        const fetchStart = Date.now();
+        
+        // Parallel fetch for better performance
+        const [statsRes, currentRes, historyRes] = await Promise.all([
+          fetch(`${apiBase}/inference/stats`),
+          fetch(`${apiBase}/inference/current`),
+          fetch(`${apiBase}/inference/latest?limit=50`)
+        ]);
+        
+        const fetchTime = Date.now() - fetchStart;
+        console.log(`Inference data fetched in ${fetchTime}ms`);
+        
         const stats = await statsRes.json();
         
-        document.getElementById('total-inferences').textContent = stats.total_inferences || 0;
+        // Set initial total predictions on first load
+        if (initialTotalPredictions === null) {
+          initialTotalPredictions = stats.total_inferences || 0;
+        }
+        
+        // Update stats cards - show total from first request
+        document.getElementById('total-inferences').textContent = initialTotalPredictions;
         document.getElementById('avg-inference-time').textContent = 
           (stats.average_inference_time_ms || 0).toFixed(1) + ' ms';
         
@@ -1036,9 +1190,11 @@
           }
         }
         
-        const currentRes = await fetch(`${apiBase}/inference/current`);
+        // Update current pattern
         if (currentRes.ok) {
           const current = await currentRes.json();
+          inferenceCache = current;
+          inferenceCacheTime = now;
           
           document.getElementById('current-pattern-name').textContent = 
             current.current_pattern.prediction || '---';
@@ -1053,22 +1209,27 @@
           displayProbabilities('current-probabilities', current.current_pattern.probabilities);
           displayProbabilities('next-probabilities', current.next_pattern.probabilities);
           
-          // Check vibration level based on current pattern
-          checkVibrationLevel(current.current_pattern.prediction);
+          // Check vibration level based on NEXT pattern (not current)
+          checkVibrationLevel(current.next_pattern.prediction);
         }
         
-        const historyRes = await fetch(`${apiBase}/inference/latest?limit=100`);
+        // Update inference history
         const history = await historyRes.json();
-        
-        // Store all inference data for pagination
-        allInferenceData = history.reverse(); // Reverse to show latest first
+        allInferenceData = history.reverse();
         maxInferencePages = Math.ceil(allInferenceData.length / inferenceRowsPerPage);
-        
-        // Render the current page
         renderInferenceTable();
+        
+        // Hide loading screen on successful load
+        hideLoadingScreen();
         
       } catch (error) {
         console.error('Error updating inference display:', error);
+        updateLoadingStatus('❌ Failed to load inference data');
+        
+        // Hide loading screen even on error after 3 seconds
+        setTimeout(hideLoadingScreen, 3000);
+      } finally {
+        isUpdating = false;
       }
     }
 
@@ -1220,9 +1381,43 @@
       });
 
       maxPages = Math.max(1, Math.ceil(allData.length / rowsPerPage));
+      updatePaginationControls();
+    }
+
+    function updatePaginationControls() {
       document.getElementById("page-number").textContent = `Page ${currentPage} of ${maxPages}`;
       document.getElementById("prev-btn").disabled = currentPage === 1;
       document.getElementById("next-btn").disabled = currentPage === maxPages || allData.length === 0;
+      document.getElementById("first-btn").disabled = currentPage === 1;
+      document.getElementById("last-btn").disabled = currentPage === maxPages || allData.length === 0;
+      
+      // Update page jump input
+      document.getElementById("page-jump-input").max = maxPages;
+      
+      // Update page buttons
+      renderPageButtons();
+    }
+
+    function renderPageButtons() {
+      const container = document.getElementById("page-buttons");
+      container.innerHTML = '';
+      
+      // Show max 5 page buttons centered around current page
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(maxPages, startPage + 4);
+      
+      // Adjust if we're near the end
+      if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = `page-button ${i === currentPage ? 'active' : ''}`;
+        btn.textContent = i;
+        btn.onclick = () => goToPage(i);
+        container.appendChild(btn);
+      }
     }
 
     function changePage(delta) {
@@ -1231,6 +1426,32 @@
         currentPage = newPage;
         renderTable();
       }
+    }
+
+    function goToPage(page) {
+      if (page >= 1 && page <= maxPages) {
+        currentPage = page;
+        renderTable();
+      }
+    }
+
+    function jumpToPage() {
+      const input = document.getElementById("page-jump-input");
+      const page = parseInt(input.value);
+      if (page >= 1 && page <= maxPages) {
+        currentPage = page;
+        renderTable();
+      } else {
+        input.value = currentPage;
+      }
+    }
+
+    function changePageSize() {
+      const select = document.getElementById("page-size-select");
+      rowsPerPage = parseInt(select.value);
+      currentPage = 1; // Reset to first page
+      maxPages = Math.ceil(allData.length / rowsPerPage);
+      renderTable();
     }
 
     function showPage(event, pageId) {
@@ -1260,15 +1481,21 @@
 
     async function updateGraphs() {
       try {
-        const res = await fetch(`${apiBase}/latest`);
-        const data = await res.json();
+        // Use existing data if available instead of fetching again
+        let chartData;
+        if (allData.length > 0) {
+          chartData = allData.slice(0, 30).reverse(); // Reduced from 50 to 30 points
+        } else {
+          const res = await fetch(`${apiBase}/latest`);
+          const data = await res.json();
+          chartData = data.slice(0, 30).reverse();
+        }
 
-        if (!data || data.length === 0) {
+        if (!chartData || chartData.length === 0) {
           console.log('No data available for charts');
           return;
         }
 
-        const chartData = data.slice(0, 50).reverse();
         const labels = chartData.map(d => {
           try {
             const date = new Date(d.timestamp);
@@ -1317,8 +1544,8 @@
             borderWidth: 2,
             fill: false,
             tension: 0.4,
-            pointRadius: 2,
-            pointHoverRadius: 4
+            pointRadius: 1, // Reduced from 2
+            pointHoverRadius: 3 // Reduced from 4
           }));
 
           if (!charts[config.id]) {
@@ -1329,6 +1556,7 @@
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false, // Disable animation for faster rendering
                 interaction: {
                   intersect: false,
                   mode: 'index'
@@ -1365,24 +1593,49 @@
       }
     }
 
-    fetchAndUpdate();
-    updateGraphs();
-    updateInferenceDisplay();
+    // Initial load with diagnostics
+    console.log('🚀 Starting initial load...');
+    console.log('📍 API Base:', apiBase);
+    
+    updateLoadingStatus('📡 Connecting to Render API...');
+    
+    Promise.all([
+      fetchAndUpdate(),
+      updateInferenceDisplay()
+    ]).then(() => {
+      console.log('✅ Initial load complete');
+      hideLoadingScreen();
+    }).catch(err => {
+      console.error('❌ Initial load failed:', err);
+      updateLoadingStatus('❌ Connection failed. Retrying...');
+      setTimeout(hideLoadingScreen, 3000);
+    });
 
+    // Optimized update intervals
     setInterval(() => {
+      const now = Date.now();
+      
+      // Throttle updates to prevent overload
+      if (now - lastUpdateTime < UPDATE_INTERVAL) {
+        return;
+      }
+      lastUpdateTime = now;
+      
+      // Only fetch sensor data
       fetchAndUpdate();
       
+      // Update active page content
       if (document.getElementById('graph-page').classList.contains('active')) {
         updateGraphs();
       }
       
       if (document.getElementById('inference-page').classList.contains('active')) {
         updateInferenceDisplay();
+      } else {
+        // Always update inference in background to check vibration levels (but use cache)
+        updateInferenceDisplay();
       }
-      
-      // Always update inference in background to check vibration levels
-      updateInferenceDisplay();
-    }, 2000);
+    }, UPDATE_INTERVAL);
 
     // Close alert when clicking outside
     document.getElementById('alert-overlay').addEventListener('click', function(e) {
